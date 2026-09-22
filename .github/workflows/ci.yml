@@ -49,14 +49,24 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
-      - name: Build workspaces
-        run: pnpm run build
+      - name: Build API (NestJS)
+        run: pnpm --filter api run build
 
-      - name: Typecheck and lint
-        run: pnpm run lint
+      - name: Build Web (Next.js)
+        run: pnpm --filter web run build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:4000
 
-      - name: Unit tests with coverage
-        run: pnpm test -- --coverage
+      - name: Typecheck API
+        run: pnpm --filter api run lint
 
-      - name: API E2E tests
+      - name: Typecheck Web
+        run: pnpm --filter web run lint
+
+      - name: Run API Unit Tests
+        run: pnpm --filter api run test -- --coverage
+
+      # apps/web has no test script yet; the workspace filter prevents Jest from
+      # being invoked in a package without a configured test runner.
+      - name: Run API E2E Tests
         run: pnpm --filter api run test:e2e
