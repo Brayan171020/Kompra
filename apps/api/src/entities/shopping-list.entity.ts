@@ -8,7 +8,7 @@ export class ShoppingListEntity {
   @Column() title: string;
   @Column({ type: 'enum', enum: ShoppingListStatus, default: ShoppingListStatus.ACTIVE }) status: ShoppingListStatus;
   @Column() creatorId: string;
-  @Column({ nullable: true }) assignedToId: string | null;
+  @Column({ type: 'varchar', nullable: true }) assignedToId: string | null;
   @CreateDateColumn() createdAt: Date;
   @Column({ type: 'timestamptz', nullable: true }) finishedAt: Date | null;
 }

@@ -1,7 +1,7 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CategoryEntity } from '../entities/category.entity';
+import { CategoryEntity } from '../entities/category.entity.js';
 
 const DEFAULT_CATEGORIES = [
   ['Carnes', '#E76F51', 'beef'], ['Charcutería', '#C44536', 'ham'], ['Víveres/Sólidos', '#E9C46A', 'wheat'],

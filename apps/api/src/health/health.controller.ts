@@ -1,6 +1,7 @@
 import { Controller, Get, Version } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
-import { HealthService } from './health.service';
+import { HealthService } from './health.service.js';
+import { Public } from '../auth/decorators/public.decorator.js';
 
 @ApiTags('health')
 @Controller('health')
@@ -9,6 +10,7 @@ export class HealthController {
 
   @Get()
   @Version('1')
+  @Public()
   @ApiOperation({ summary: 'Comprueba el servicio y la conexión con Neon PostgreSQL' })
   check(): Promise<{ status: string; database: string; timestamp: string }> { return this.healthService.check(); }
 }

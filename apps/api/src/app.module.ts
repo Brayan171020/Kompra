@@ -1,13 +1,15 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { CategoryEntity } from './entities/category.entity';
-import { InventoryPurchaseEntity } from './entities/inventory-purchase.entity';
-import { ListItemEntity } from './entities/list-item.entity';
-import { ShoppingListEntity } from './entities/shopping-list.entity';
-import { UserEntity } from './entities/user.entity';
-import { HealthModule } from './health/health.module';
-import { CategoriesModule } from './categories/categories.module';
+import { CategoryEntity } from './entities/category.entity.js';
+import { InventoryPurchaseEntity } from './entities/inventory-purchase.entity.js';
+import { ListItemEntity } from './entities/list-item.entity.js';
+import { ShoppingListEntity } from './entities/shopping-list.entity.js';
+import { UserEntity } from './entities/user.entity.js';
+import { AuthModule } from './auth/auth.module.js';
+import { HealthModule } from './health/health.module.js';
+import { CategoriesModule } from './categories/categories.module.js';
+import { UsersModule } from './users/users.module.js';
 
 @Module({
   imports: [
@@ -26,6 +28,8 @@ import { CategoriesModule } from './categories/categories.module';
     }),
     HealthModule,
     CategoriesModule,
+    AuthModule,
+    UsersModule,
   ],
 })
 export class AppModule {}
