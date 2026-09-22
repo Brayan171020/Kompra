@@ -1,11 +1,11 @@
 {
     "schema_version": 2,
-    "commit": "93aea86c1c2226696b4d4e9680b17894efd7dad5",
-    "indexed_at": "2026-09-22T22:04:17Z",
+    "commit": "d89ffe89c32c6784a78e1146ffc8f3f654d08c5c",
+    "indexed_at": "2026-09-22T22:11:20Z",
     "project": "K-trabajo3-kompra",
-    "nodes": 434,
+    "nodes": 433,
     "edges": 925,
     "original_size": 2490368,
-    "compressed_size": 350452,
+    "compressed_size": 352581,
     "compression_level": 3
 }
