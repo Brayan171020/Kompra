@@ -5,6 +5,7 @@ import { UserEntity, UserRole } from '../entities/user.entity.js';
 import { CategoryEntity } from '../entities/category.entity.js';
 import { ListItemEntity, ListItemStatus } from '../entities/list-item.entity.js';
 import { ShoppingListEntity, ShoppingListStatus } from '../entities/shopping-list.entity.js';
+import { UserContactEntity } from '../entities/user-contact.entity.js';
 import { AssignListDto } from './dto/assign-list.dto.js';
 import { CreateListDto } from './dto/create-list.dto.js';
 
@@ -16,11 +17,12 @@ export class ListsService {
     @InjectRepository(ShoppingListEntity) private readonly lists: Repository<ShoppingListEntity>,
     @InjectRepository(ListItemEntity) private readonly items: Repository<ListItemEntity>,
     @InjectRepository(UserEntity) private readonly users: Repository<UserEntity>,
+    @InjectRepository(UserContactEntity) private readonly contacts: Repository<UserContactEntity>,
     @InjectRepository(CategoryEntity) private readonly categories: Repository<CategoryEntity>,
   ) {}
 
   async create(dto: CreateListDto, actor: ListActor): Promise<ShoppingListEntity> {
-    if (dto.assignedToId) await this.assertAssignableUser(dto.assignedToId);
+    if (dto.assignedToId) await this.assertAssignableUser(dto.assignedToId, actor.id);
     return this.lists.save(this.lists.create({ title: dto.title, creatorId: actor.id, assignedToId: dto.assignedToId ?? null, status: ShoppingListStatus.ACTIVE }));
   }
 
@@ -55,7 +57,7 @@ export class ListsService {
 
   async assign(id: string, dto: AssignListDto, actor: ListActor): Promise<ShoppingListEntity> {
     const list = await this.getAuthorizedList(id, actor, true);
-    await this.assertAssignableUser(dto.assignedToId);
+    await this.assertAssignableUser(dto.assignedToId, actor.id);
     list.assignedToId = dto.assignedToId;
     return this.lists.save(list);
   }
@@ -76,10 +78,11 @@ export class ListsService {
     return list;
   }
 
-  private async assertAssignableUser(userId: string): Promise<void> {
+  private async assertAssignableUser(userId: string, actorId: string): Promise<void> {
     const user = await this.users.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('Assigned user not found');
     if (user.role !== UserRole.BUYER && user.role !== UserRole.CREATOR) throw new BadRequestException('Only BUYER or CREATOR users can be assigned');
+    if (user.role === UserRole.BUYER && !(await this.contacts.findOneBy({ userId: actorId, contactId: userId }))) throw new ForbiddenException('The assigned buyer must be in your contact network');
   }
 
 }

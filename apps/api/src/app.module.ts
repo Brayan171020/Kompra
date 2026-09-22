@@ -6,6 +6,7 @@ import { InventoryPurchaseEntity } from './entities/inventory-purchase.entity.js
 import { ListItemEntity } from './entities/list-item.entity.js';
 import { ShoppingListEntity } from './entities/shopping-list.entity.js';
 import { UserEntity } from './entities/user.entity.js';
+import { UserContactEntity } from './entities/user-contact.entity.js';
 import { AuthModule } from './auth/auth.module.js';
 import { HealthModule } from './health/health.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
@@ -24,7 +25,7 @@ import { InventoryModule } from './inventory/inventory.module.js';
         type: 'postgres' as const,
         url: config.getOrThrow<string>('DATABASE_URL'),
         ssl: { rejectUnauthorized: false },
-        entities: [UserEntity, CategoryEntity, ShoppingListEntity, ListItemEntity, InventoryPurchaseEntity],
+        entities: [UserEntity, UserContactEntity, CategoryEntity, ShoppingListEntity, ListItemEntity, InventoryPurchaseEntity],
         synchronize: config.get('NODE_ENV') === 'development',
         autoLoadEntities: false,
       }),

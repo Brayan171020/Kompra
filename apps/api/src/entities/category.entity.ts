@@ -1,4 +1,4 @@
-import { Column, Entity, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 
 @Entity('categories')
 export class CategoryEntity {
@@ -6,4 +6,6 @@ export class CategoryEntity {
   @Column({ unique: true }) name: string;
   @Column() color: string;
   @Column() icon: string;
+  @Index('IDX_categories_creator')
+  @Column({ type: 'uuid', nullable: true }) creatorId: string | null;
 }

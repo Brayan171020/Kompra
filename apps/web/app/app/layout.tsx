@@ -3,6 +3,9 @@
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { authClient } from '../../lib/auth-client';
+import { FriendNetwork } from '../../components/friend-network';
+import { CategoryQuickCreate } from '../../components/category-quick-create';
+import { ListAssignmentQuick } from '../../components/list-assignment-quick';
 
 export default function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const { data: session, isPending, error } = authClient.useSession();
@@ -17,5 +20,5 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
   }
 
   if (error || !session) return null;
-  return <>{children}</>;
+  return <><div className="min-h-screen">{children}</div><FriendNetwork /><ListAssignmentQuick /><CategoryQuickCreate /></>;
 }
