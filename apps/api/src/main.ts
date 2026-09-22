@@ -24,6 +24,7 @@ async function bootstrap(): Promise<void> {
       credentials: true,
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie'],
+      exposedHeaders: ['set-auth-token'],
     });
     app.use('/api/v1/auth', toNodeHandler(auth));
     app.use(express.json());
