@@ -17,4 +17,6 @@ export class CategoriesService implements OnModuleInit {
       await this.repository.save(DEFAULT_CATEGORIES.map(([name, color, icon]) => this.repository.create({ name, color, icon })));
     }
   }
+
+  findAll(): Promise<CategoryEntity[]> { return this.repository.find({ order: { name: 'ASC' } }); }
 }
