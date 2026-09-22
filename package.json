@@ -5,6 +5,7 @@
   "scripts": {
     "build": "pnpm --filter @kompra/api build && pnpm --filter @kompra/web build",
     "dev": "pnpm --parallel --filter @kompra/api --filter @kompra/web dev",
-    "lint": "pnpm --recursive --if-present lint"
+    "lint": "pnpm --recursive --if-present lint",
+    "test": "pnpm --recursive --if-present test"
   }
 }
