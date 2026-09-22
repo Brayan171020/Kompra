@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main]
+
+env:
+  CI: true
+  NODE_ENV: test
+  PORT: 4000
+  DATABASE_URL: postgresql://postgres:postgres@localhost:5432/kompra_test
+  BETTER_AUTH_SECRET: test-secret-key-must-be-at-least-32-chars-long-123456
+  BETTER_AUTH_URL: http://localhost:4000/api/v1/auth
+  TRUSTED_ORIGINS: http://localhost:3000
+  NEXT_PUBLIC_API_URL: http://localhost:4000
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9.15.4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build workspaces
+        run: pnpm run build
+
+      - name: Typecheck and lint
+        run: pnpm run lint
+
+      - name: Unit tests with coverage
+        run: pnpm test -- --coverage
+
+      - name: API E2E tests
+        run: pnpm --filter api run test:e2e

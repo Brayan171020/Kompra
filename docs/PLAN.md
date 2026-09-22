@@ -20,7 +20,7 @@ security boundaries documented below.
 - **Quality:** validation pipes, centralized exception responses, typed DTOs,
   unit/integration/E2E tests, and visual responsive checks are release gates.
 
-## Phase 1 — Data foundation, Better Auth, and RBAC
+## Phase 1 — Data foundation, Better Auth, and RBAC [x]
 
 ### Objective
 
@@ -53,7 +53,7 @@ and `BUYER` roles and a secure NestJS authorization boundary.
   branch or disposable Postgres database.
 - No credentials, session tokens, or auth headers appear in logs or fixtures.
 
-## Phase 2 — Grocery-list engine and supermarket mode
+## Phase 2 — Grocery-list engine and supermarket mode [x]
 
 ### Objective
 
@@ -87,7 +87,7 @@ shopping lists.
   categories, and empty/invalid payloads.
 - Responsive UI checks pass at 360px, 390px, 428px, tablet, and desktop widths.
 
-## Phase 3 — Pantry mode and historical purchases
+## Phase 3 — Pantry mode and historical purchases [x]
 
 **Status: Complete — 2026-09-22**
 
@@ -120,7 +120,12 @@ Create a chronological purchase record and useful household consumption signals.
   permissions are covered by unit and integration tests.
 - Dashboard values reconcile with API aggregates and remain usable on mobile.
 
-## Phase 4 — Quality, automated testing, and CI/CD
+## Phase 4 — Quality, automated testing, and CI/CD [x]
+
+**Status: Complete — 2026-09-22**
+
+Delivered: isolated Supertest E2E contracts, reproducible pnpm/Node CI, coverage
+gates, documented quality commands, and a completed roadmap.
 
 ### Objective
 

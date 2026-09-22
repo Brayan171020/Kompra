@@ -5,6 +5,7 @@
 [![Next.js](https://img.shields.io/badge/Next.js-App_Router-000000?logo=nextdotjs&logoColor=white)](https://nextjs.org/)
 [![NestJS](https://img.shields.io/badge/NestJS-11-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
 [![Neon PostgreSQL](https://img.shields.io/badge/Neon-PostgreSQL-00E599?logo=postgresql&logoColor=111111)](https://neon.tech/)
+[![TypeORM](https://img.shields.io/badge/TypeORM-0.3-FE0803?logo=typeorm&logoColor=white)](https://typeorm.io/)
 [![Better Auth](https://img.shields.io/badge/Better_Auth-session%20security-111827)](https://www.better-auth.com/)
 
 ## Project Overview
@@ -60,7 +61,15 @@ pnpm install
 pnpm run dev       # API on :4000 and web on the Next.js dev port
 pnpm run lint
 pnpm test          # populated as Jest suites land in the roadmap
+pnpm --filter api run test:e2e
 pnpm run build
+```
+
+The complete automated test commands are:
+
+```bash
+pnpm test
+pnpm --filter api run test:e2e
 ```
 
 For the API, configure `apps/api/.env` from `apps/api/.env.example`. Better Auth
