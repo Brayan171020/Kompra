@@ -5,14 +5,26 @@ import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { toNodeHandler } from 'better-auth/node';
-import { auth, trustedOrigins } from './auth/auth.js';
+import { auth } from './auth/auth.js';
 import { AppModule } from './app.module.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 
 async function bootstrap(): Promise<void> {
   try {
     const app = await NestFactory.create(AppModule, { bodyParser: false });
-    app.enableCors({ origin: trustedOrigins, credentials: true, allowedHeaders: ['Content-Type', 'Authorization'] });
+    const trustedOrigins = (process.env.TRUSTED_ORIGINS || '')
+      .split(',')
+      .map((origin) => origin.trim())
+      .filter(Boolean);
+    app.enableCors({
+      origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
+        if (!origin || trustedOrigins.length === 0 || trustedOrigins.includes(origin)) return callback(null, true);
+        return callback(new Error(`Origin ${origin} not allowed by CORS`));
+      },
+      credentials: true,
+      methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
+      allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie'],
+    });
     app.use('/api/v1/auth', toNodeHandler(auth));
     app.use(express.json());
     app.setGlobalPrefix('api');

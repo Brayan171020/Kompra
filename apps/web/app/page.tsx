@@ -9,8 +9,8 @@ export default function Home() {
   const [connection, setConnection] = useState<Connection>('checking');
 
   useEffect(() => {
-    const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000/api/v1';
-    fetch(`${apiUrl}/health`, { signal: AbortSignal.timeout(3500) })
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+    fetch(`${apiUrl.replace(/\/$/, '')}/api/v1/health`, { signal: AbortSignal.timeout(3500) })
       .then((response) => { if (!response.ok) throw new Error('API unavailable'); setConnection('connected'); })
       .catch(() => setConnection('offline'));
   }, []);
