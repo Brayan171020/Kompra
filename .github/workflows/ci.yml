@@ -64,7 +64,7 @@ jobs:
         run: pnpm --filter web run lint
 
       - name: Run API Unit Tests
-        run: pnpm --filter api run test -- --coverage
+        run: pnpm --filter api run test --coverage
 
       # apps/web has no test script yet; the workspace filter prevents Jest from
       # being invoked in a package without a configured test runner.
