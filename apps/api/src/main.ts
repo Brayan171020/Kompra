@@ -10,24 +10,31 @@ import { AppModule } from './app.module.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule, { bodyParser: false });
-  app.enableCors({ origin: trustedOrigins, credentials: true, allowedHeaders: ['Content-Type', 'Authorization'] });
-  app.use('/api/v1/auth', toNodeHandler(auth));
-  app.use(express.json());
-  app.setGlobalPrefix('api');
-  app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
-  app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
-  app.useGlobalFilters(new HttpExceptionFilter());
+  try {
+    const app = await NestFactory.create(AppModule, { bodyParser: false });
+    app.enableCors({ origin: trustedOrigins, credentials: true, allowedHeaders: ['Content-Type', 'Authorization'] });
+    app.use('/api/v1/auth', toNodeHandler(auth));
+    app.use(express.json());
+    app.setGlobalPrefix('api');
+    app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
+    app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
+    app.useGlobalFilters(new HttpExceptionFilter());
 
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Kompra API')
-    .setDescription('API colaborativa para listas de compras y despensa familiar')
-    .setVersion('1.0')
-    .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'session_token' }, 'bearer')
-    .build();
-  SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Kompra API')
+      .setDescription('API colaborativa para listas de compras y despensa familiar')
+      .setVersion('1.0')
+      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'session_token' }, 'bearer')
+      .build();
+    SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
 
-  await app.listen(Number(process.env.PORT ?? 4000));
+    const port = Number(process.env.PORT || 10000);
+    await app.listen(port, '0.0.0.0');
+    console.log(`Application is running on: ${await app.getUrl()}`);
+  } catch (err) {
+    console.error('Error starting server:', err);
+    process.exitCode = 1;
+  }
 }
 
 void bootstrap();
