@@ -48,6 +48,9 @@ export const auth = betterAuth({
   },
   plugins: [bearer()],
   advanced: {
+    database: {
+      generateId: 'uuid',
+    },
     useSecureCookies: isProduction,
     defaultCookieAttributes: {
       httpOnly: true,

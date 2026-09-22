@@ -19,4 +19,28 @@ describe('ListsService', () => {
     const service = new ListsService(repo({ findOne: async () => ({ id: 'list-1', creatorId: 'creator-1', assignedToId: 'buyer-1', status: ShoppingListStatus.ACTIVE }) }) as never, repo() as never, repo() as never, repo() as never);
     await expect(service.assign('list-1', { assignedToId: 'buyer-2' }, { id: 'buyer-1', role: UserRole.BUYER })).rejects.toThrow(ForbiddenException);
   });
+
+  it('assigns a list to a BUYER', async () => {
+    const save = jest.fn(async (value: unknown) => value);
+    const service = new ListsService(
+      repo({ findOne: async () => ({ id: 'list-1', creatorId: 'creator-1', assignedToId: null, status: ShoppingListStatus.ACTIVE }), save }) as never,
+      repo() as never,
+      repo({ findOne: async () => ({ id: 'buyer-2', role: UserRole.BUYER }) }) as never,
+      repo() as never,
+    );
+    const list = await service.assign('list-1', { assignedToId: 'buyer-2' }, { id: 'creator-1', role: UserRole.CREATOR });
+    expect(list.assignedToId).toBe('buyer-2');
+    expect(save).toHaveBeenCalled();
+  });
+
+  it('assigns a list to another CREATOR', async () => {
+    const service = new ListsService(
+      repo({ findOne: async () => ({ id: 'list-1', creatorId: 'creator-1', assignedToId: null, status: ShoppingListStatus.ACTIVE }) }) as never,
+      repo() as never,
+      repo({ findOne: async () => ({ id: 'creator-2', role: UserRole.CREATOR }) }) as never,
+      repo() as never,
+    );
+    const list = await service.assign('list-1', { assignedToId: 'creator-2' }, { id: 'creator-1', role: UserRole.CREATOR });
+    expect(list.assignedToId).toBe('creator-2');
+  });
 });

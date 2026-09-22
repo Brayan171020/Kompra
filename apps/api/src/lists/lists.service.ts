@@ -20,7 +20,7 @@ export class ListsService {
   ) {}
 
   async create(dto: CreateListDto, actor: ListActor): Promise<ShoppingListEntity> {
-    if (dto.assignedToId) await this.assertBuyer(dto.assignedToId);
+    if (dto.assignedToId) await this.assertAssignableUser(dto.assignedToId);
     return this.lists.save(this.lists.create({ title: dto.title, creatorId: actor.id, assignedToId: dto.assignedToId ?? null, status: ShoppingListStatus.ACTIVE }));
   }
 
@@ -55,7 +55,7 @@ export class ListsService {
 
   async assign(id: string, dto: AssignListDto, actor: ListActor): Promise<ShoppingListEntity> {
     const list = await this.getAuthorizedList(id, actor, true);
-    await this.assertBuyer(dto.assignedToId);
+    await this.assertAssignableUser(dto.assignedToId);
     list.assignedToId = dto.assignedToId;
     return this.lists.save(list);
   }
@@ -76,10 +76,10 @@ export class ListsService {
     return list;
   }
 
-  private async assertBuyer(userId: string): Promise<void> {
+  private async assertAssignableUser(userId: string): Promise<void> {
     const user = await this.users.findOne({ where: { id: userId } });
-    if (!user) throw new NotFoundException('Assigned buyer not found');
-    if (user.role !== UserRole.BUYER) throw new BadRequestException('Only BUYER users can be assigned');
+    if (!user) throw new NotFoundException('Assigned user not found');
+    if (user.role !== UserRole.BUYER && user.role !== UserRole.CREATOR) throw new BadRequestException('Only BUYER or CREATOR users can be assigned');
   }
 
 }

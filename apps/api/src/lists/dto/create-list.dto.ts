@@ -7,7 +7,7 @@ export class CreateListDto {
   @Length(2, 120)
   title: string;
 
-  @ApiPropertyOptional({ format: 'uuid', description: 'User id of the assigned BUYER' })
+  @ApiPropertyOptional({ format: 'uuid', description: 'User id of the assigned BUYER or CREATOR' })
   @IsOptional()
   @IsUUID()
   assignedToId?: string;

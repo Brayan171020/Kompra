@@ -1,3 +1,4 @@
+import 'dotenv/config';
 import { DataSource } from 'typeorm';
 import { Pool } from 'pg';
 import { auth } from '../auth/auth.js';
