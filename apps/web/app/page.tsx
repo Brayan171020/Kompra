@@ -2,11 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { ArrowUpRight, Check, ClipboardList, Package, Sparkles, Users } from 'lucide-react';
+import Link from 'next/link';
+import { signOut, useSession } from '../lib/auth-client';
 
 type Connection = 'checking' | 'connected' | 'offline';
 
 export default function Home() {
   const [connection, setConnection] = useState<Connection>('checking');
+  const { data: session } = useSession();
+  const isAuthenticated = Boolean(session?.user);
 
   useEffect(() => {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
@@ -22,6 +26,9 @@ export default function Home() {
       <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-5 py-5 sm:px-8 lg:px-12">
         <header className="flex items-center justify-between border-b border-[#dce4dd] pb-5">
           <div className="flex items-center gap-2.5"><span className="grid size-9 place-items-center rounded-xl bg-[#173d34] text-sm font-bold text-[#d9f96e]">K</span><span className="text-lg font-semibold tracking-[-0.04em]">kompra<span className="text-[#83a996]">.</span></span></div>
+          <nav className="flex items-center gap-2" aria-label="Navegación principal">
+            {isAuthenticated ? <><Link href="/app" className="hidden rounded-full bg-[#173d34] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#245649] sm:inline-flex">Ir a la App</Link><button onClick={() => signOut({ fetchOptions: { onSuccess: () => window.location.reload() } })} className="rounded-full px-3 py-2.5 text-xs font-semibold text-[#64736c] transition hover:bg-white hover:text-[#173d34]">Cerrar sesión</button></> : <><Link href="/login" className="rounded-full px-3 py-2.5 text-xs font-semibold text-[#64736c] transition hover:bg-white hover:text-[#173d34]">Iniciar sesión</Link><Link href="/register" className="rounded-full bg-[#173d34] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#245649]">Registrarse</Link></>}
+          </nav>
           <div className="flex items-center gap-2 text-xs font-medium text-[#60716a]"><span className={`size-2 rounded-full ${connection === 'connected' ? 'bg-[#8fbf3f]' : connection === 'offline' ? 'bg-[#d7795f]' : 'animate-pulse bg-[#d7ad4a]'}`} />{statusLabel}</div>
         </header>
 
@@ -30,7 +37,7 @@ export default function Home() {
             <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#cddccf] bg-white/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-[.14em] text-[#47725c]"><Sparkles size={14} /> Orden cotidiano, sin fricción</div>
             <h1 className="max-w-xl text-5xl font-semibold leading-[.96] tracking-[-.065em] sm:text-7xl">La despensa funciona mejor <span className="text-[#6b9140]">en equipo.</span></h1>
             <p className="mt-7 max-w-lg text-lg leading-8 text-[#64736c]">Listas compartidas, compras claras y un inventario que te ayuda a saber qué hay en casa antes de salir.</p>
-            <div className="mt-9 flex flex-wrap gap-3"><button className="inline-flex items-center gap-2 rounded-full bg-[#173d34] px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#173d34]/15 transition hover:bg-[#245649]">Crear una lista <ArrowUpRight size={17} /></button><button className="rounded-full border border-[#cddccf] bg-white px-5 py-3.5 text-sm font-semibold text-[#355448] transition hover:border-[#9ab8a2]">Explorar despensa</button></div>
+            <div className="mt-9 flex flex-wrap gap-3"><Link href={isAuthenticated ? '/app' : '/login'} className="inline-flex items-center gap-2 rounded-full bg-[#173d34] px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#173d34]/15 transition hover:bg-[#245649]">Crear una lista <ArrowUpRight size={17} /></Link><Link href={isAuthenticated ? '/app/inventory' : '/login'} className="rounded-full border border-[#cddccf] bg-white px-5 py-3.5 text-sm font-semibold text-[#355448] transition hover:border-[#9ab8a2]">Explorar despensa</Link></div>
           </div>
 
           <div className="relative mx-auto w-full max-w-md">
