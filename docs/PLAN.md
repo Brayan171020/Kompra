@@ -89,6 +89,12 @@ shopping lists.
 
 ## Phase 3 — Pantry mode and historical purchases
 
+**Status: Complete — 2026-09-22**
+
+Delivered: indexed inventory persistence with cost/source references, paginated
+history and current-month analytics, transactional idempotent imports from
+finished lists, and the mobile-first `/app/inventory` pantry surface.
+
 ### Objective
 
 Create a chronological purchase record and useful household consumption signals.

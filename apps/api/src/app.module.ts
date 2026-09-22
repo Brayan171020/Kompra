@@ -12,6 +12,7 @@ import { CategoriesModule } from './categories/categories.module.js';
 import { UsersModule } from './users/users.module.js';
 import { ListsModule } from './lists/lists.module.js';
 import { ItemsModule } from './items/items.module.js';
+import { InventoryModule } from './inventory/inventory.module.js';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { ItemsModule } from './items/items.module.js';
     UsersModule,
     ListsModule,
     ItemsModule,
+    InventoryModule,
   ],
 })
 export class AppModule {}
