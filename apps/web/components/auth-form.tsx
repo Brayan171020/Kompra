@@ -21,6 +21,13 @@ export function LoginForm() {
     if (!sessionPending && session?.user) router.replace('/app');
   }, [router, session, sessionPending]);
 
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('error') === 'account_not_linked') {
+      setErrorMsg('Este correo ya está registrado con contraseña. Hemos vinculado tu cuenta para que puedas entrar con Google o puedes ingresar con tu contraseña.');
+    }
+  }, []);
+
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setLoading(true);

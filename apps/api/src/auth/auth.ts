@@ -48,6 +48,13 @@ const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24,
   },
+  account: {
+    accountLinking: {
+      enabled: true,
+      trustedProviders: ['google'],
+      requireLocalEmailVerified: true,
+    },
+  },
   rateLimit: { enabled: true, window: 60, max: 5, storage: 'memory' },
   socialProviders: googleClientId && googleClientSecret ? {
     google: {
