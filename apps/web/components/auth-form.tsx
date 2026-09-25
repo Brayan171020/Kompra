@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from 'react';
 import { KeyRound, LoaderCircle, LogIn } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { authClient, neonAuthClient, useSession } from '../lib/auth-client';
+import { authClient, useSession } from '../lib/auth-client';
 import Link from 'next/link';
 import { AuthShell } from './auth-shell';
 
@@ -47,7 +47,7 @@ export function LoginForm() {
 
   async function signInWithGoogle() {
     setErrorMsg('');
-    const { error } = await neonAuthClient.signIn.social({ provider: 'google', callbackURL: '/app' });
+    const { error } = await authClient.signIn.social({ provider: 'google', callbackURL: '/app' });
     if (error) setErrorMsg(error.message || 'No pudimos iniciar sesión con Google.');
   }
 
