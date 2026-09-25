@@ -5,8 +5,9 @@ import { CategoryEntity } from '../entities/category.entity.js';
 import { CreateCategoryDto } from './dto/create-category.dto.js';
 
 const DEFAULT_CATEGORIES = [
-  ['Carnes', '#E76F51', 'beef'], ['Charcutería', '#C44536', 'ham'], ['Víveres/Sólidos', '#E9C46A', 'wheat'],
-  ['Frutas y Verduras', '#2A9D8F', 'carrot'], ['Limpieza', '#457B9D', 'sparkles'],
+  ['Víveres y alimentos', '#E9C46A', 'wheat'], ['Frutas y verduras', '#2A9D8F', 'carrot'],
+  ['Hogar y limpieza', '#457B9D', 'sparkles'], ['Herramientas', '#7C9A5B', 'hammer'],
+  ['Ferretería', '#8B6F47', 'wrench'], ['Repuestos', '#C44536', 'settings'], ['Insumos de trabajo', '#6C63A8', 'briefcase'],
 ] as const;
 
 @Injectable()

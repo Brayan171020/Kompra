@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { CategoryEntity } from './entities/category.entity.js';
 import { InventoryPurchaseEntity } from './entities/inventory-purchase.entity.js';
 import { ListItemEntity } from './entities/list-item.entity.js';
@@ -18,6 +20,7 @@ import { InventoryModule } from './inventory/inventory.module.js';
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
+    ThrottlerModule.forRoot([{ name: 'default', ttl: 60000, limit: 60 }]),
     TypeOrmModule.forRootAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -38,5 +41,6 @@ import { InventoryModule } from './inventory/inventory.module.js';
     ItemsModule,
     InventoryModule,
   ],
+  providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
 export class AppModule {}

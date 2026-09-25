@@ -3,7 +3,8 @@ import './globals.css';
 
 export const metadata: Metadata = {
   title: 'Kompra — compras en equipo',
-  description: 'Listas de compras inteligentes para hogares que se organizan juntos.',
+  description: 'Listas asignadas e inventario general para organizar cualquier compra.',
+  icons: { icon: '/icon.svg' },
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

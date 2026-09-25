@@ -35,7 +35,7 @@ export default function Home() {
         <section className="grid flex-1 items-center gap-12 py-14 lg:grid-cols-[1.1fr_.9fr] lg:py-20">
           <div className="max-w-2xl">
             <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#cddccf] bg-white/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-[.14em] text-[#47725c]"><Sparkles size={14} /> Orden cotidiano, sin fricción</div>
-            <h1 className="max-w-xl text-5xl font-semibold leading-[.96] tracking-[-.065em] sm:text-7xl">La despensa funciona mejor <span className="text-[#6b9140]">en equipo.</span></h1>
+            <h1 className="max-w-xl text-5xl font-semibold leading-[.96] tracking-[-.065em] sm:text-7xl">Las compras funcionan mejor <span className="text-[#6b9140]">con contexto.</span></h1>
             <p className="mt-7 max-w-lg text-lg leading-8 text-[#64736c]">Listas compartidas, compras claras y un inventario que te ayuda a saber qué hay en casa antes de salir.</p>
             <div className="mt-9 flex flex-wrap gap-3"><Link href={isAuthenticated ? '/app' : '/login'} className="inline-flex items-center gap-2 rounded-full bg-[#173d34] px-5 py-3.5 text-sm font-semibold text-white shadow-lg shadow-[#173d34]/15 transition hover:bg-[#245649]">Crear una lista <ArrowUpRight size={17} /></Link><Link href={isAuthenticated ? '/app/inventory' : '/login'} className="rounded-full border border-[#cddccf] bg-white px-5 py-3.5 text-sm font-semibold text-[#355448] transition hover:border-[#9ab8a2]">Explorar despensa</Link></div>
           </div>

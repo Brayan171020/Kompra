@@ -21,7 +21,7 @@ export const auth = betterAuth({
   appName: 'Kompra',
   baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:4000',
   basePath: '/api/v1/auth',
-  secret: process.env.BETTER_AUTH_SECRET ?? 'kompra-local-development-secret-change-me-32-chars',
+  secret: process.env.BETTER_AUTH_SECRET ?? (isProduction ? (() => { throw new Error('BETTER_AUTH_SECRET must be configured in production'); })() : 'kompra-local-development-secret-change-me-32-chars'),
   trustedOrigins,
   database: {
     dialect: new PostgresDialect({ pool: databasePool }),
@@ -46,6 +46,7 @@ export const auth = betterAuth({
     expiresIn: 60 * 60 * 24 * 7,
     updateAge: 60 * 60 * 24,
   },
+  rateLimit: { enabled: true, window: 60, max: 5, storage: 'memory' },
   plugins: [bearer()],
   advanced: {
     database: {

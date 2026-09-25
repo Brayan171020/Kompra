@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import 'dotenv/config';
 import express from 'express';
+import helmet from 'helmet';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -12,19 +13,32 @@ import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
 async function bootstrap(): Promise<void> {
   try {
     const app = await NestFactory.create(AppModule, { bodyParser: false });
-    const trustedOrigins = (process.env.TRUSTED_ORIGINS || '')
+    const trustedOrigins = (process.env.TRUSTED_ORIGINS || 'http://localhost:3000')
       .split(',')
       .map((origin) => origin.trim())
       .filter(Boolean);
+    app.use(helmet({
+      contentSecurityPolicy: {
+        directives: {
+          defaultSrc: ["'self'"],
+          baseUri: ["'self'"],
+          frameAncestors: ["'none'"],
+          objectSrc: ["'none'"],
+          scriptSrc: ["'self'"],
+          styleSrc: ["'self'", "'unsafe-inline'"],
+          imgSrc: ["'self'", 'data:', 'https:'],
+          connectSrc: ["'self'", ...trustedOrigins],
+        },
+      },
+    }));
     app.enableCors({
       origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
-        if (!origin || trustedOrigins.length === 0 || trustedOrigins.includes(origin)) return callback(null, true);
+        if (!origin || trustedOrigins.includes(origin)) return callback(null, true);
         return callback(new Error(`Origin ${origin} not allowed by CORS`));
       },
       credentials: true,
       methods: ['GET', 'HEAD', 'PUT', 'PATCH', 'POST', 'DELETE', 'OPTIONS'],
       allowedHeaders: ['Content-Type', 'Authorization', 'X-Requested-With', 'Cookie'],
-      exposedHeaders: ['set-auth-token'],
     });
     app.use('/api/v1/auth', toNodeHandler(auth));
     app.use(express.json());
