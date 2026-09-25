@@ -50,6 +50,18 @@ Next.js App Router / React / Tailwind
                                       └── Better Auth/Kysely ── schema neon_auth
 ```
 
+En producción, las operaciones Better Auth del navegador no llaman directamente
+al subdominio de Neon. `apps/web/app/api/auth/[...all]/route.ts` funciona como
+proxy same-origin: recibe `/api/auth/*`, reenvía método, query, body, cookies y
+cabeceras HTTP relevantes al endpoint administrado de Neon Auth, y devuelve la
+respuesta al navegador bajo el dominio de Vercel. El proxy elimina el atributo
+`Domain` de cada `Set-Cookie` para que la cookie sea first-party de la aplicación.
+
+En el inicio OAuth, el proxy reescribe el `redirect_uri` interno de Neon hacia
+`/api/auth/callback/*`; así el callback también atraviesa Vercel y la cookie se
+establece bajo el dominio de la aplicación. Las redirecciones externas hacia
+Google se conservan sin modificación.
+
 El monorepo usa pnpm workspaces:
 
 - `apps/web`: Next.js 15, React 19, TypeScript estricto, App Router, Tailwind CSS 4 y Lucide React.
@@ -85,7 +97,12 @@ El monorepo usa pnpm workspaces:
 - Orígenes permitidos desde `TRUSTED_ORIGINS`.
 - Identificadores UUID.
 
-El cliente (`auth-client.ts`) utiliza `createAuthClient` contra `${NEXT_PUBLIC_API_URL}/api/v1/auth` y manda credenciales con `credentials: include`. No almacena el header `set-auth-token` ni tokens de sesión en `localStorage`; la sesión del navegador se mantiene mediante cookie segura.
+El cliente (`auth-client.ts`) utiliza `createAuthClient` contra el proxy
+same-origin `/api/auth` y manda credenciales con `credentials: include`. La URL
+se materializa como absoluta durante SSR/build para cumplir el contrato de
+Better Auth, pero siempre apunta al origen actual de la aplicación. No almacena
+el header `set-auth-token` ni tokens de sesión en `localStorage`; la sesión del
+navegador se mantiene mediante cookie segura reescrita por el proxy.
 
 ### Protección HTTP y límites
 
@@ -326,10 +343,16 @@ Better Auth se monta directamente con `toNodeHandler(auth)` bajo `/api/v1/auth`,
 
 | Método/ruta | Uso | Entrada | Resultado |
 |---|---|---|---|
-| `POST /api/v1/auth/sign-up/email` | Registro | `{ name, email, password, role }` | Crea identidad y sesión mediante cookie HTTP-only. |
-| `POST /api/v1/auth/sign-in/email` | Login | `{ email, password }` | Establece la cookie de sesión. |
-| `POST /api/v1/auth/sign-out` | Logout | Sesión vigente | Invalida sesión. |
-| `GET /api/v1/auth/get-session` | Hook `useSession` | Cookie HTTP-only o Bearer compatible | Sesión actual o ausencia. |
+| `POST /api/auth/sign-up/email` | Registro | `{ name, email, password, role }` | Proxy Vercel → Neon Auth; crea identidad y cookie HTTP-only first-party. |
+| `POST /api/auth/sign-in/email` | Login | `{ email, password }` | Proxy Vercel → Neon Auth; establece la cookie bajo el dominio web. |
+| `POST /api/auth/sign-in/social` | Google OAuth | `{ provider: "google", callbackURL }` | Proxy conserva la redirección a Google y proxifica el callback. |
+| `POST /api/auth/sign-out` | Logout | Sesión vigente | Proxy invalida sesión en Neon y retransmite `Set-Cookie`. |
+| `GET /api/auth/get-session` | Hook `useSession` | Cookie HTTP-only first-party | Proxy consulta Neon y devuelve la sesión actual o ausencia. |
+
+El endpoint upstream se toma de `NEXT_PUBLIC_NEON_AUTH_URL` y tiene como
+respaldo explícito la URL administrada de Neon configurada para Kompra. El proxy
+no envía metadatos internos de Next/Vercel como `x-forwarded-host`, evitando
+respuestas `400` por validación de origen o URL en Neon Auth.
 
 Los endpoints adicionales de Better Auth dependen del handler/versionado de la librería; no hay controladores custom que añadan recuperación de contraseña, OAuth o verificación de email. El frontend utiliza cookies y no persiste tokens en almacenamiento web.
 

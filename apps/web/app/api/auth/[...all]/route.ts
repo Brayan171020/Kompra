@@ -12,7 +12,12 @@ async function proxy(request: NextRequest): Promise<NextResponse> {
   const headers = new Headers(request.headers);
   headers.delete('host');
   headers.delete('content-length');
-  headers.set('x-forwarded-host', request.headers.get('host') ?? '');
+  // Do not leak Next/Vercel routing metadata to Neon Auth. In particular,
+  // x-forwarded-host can make the managed endpoint reject an otherwise valid
+  // get-session request as a malformed origin.
+  for (const header of ['x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port', 'next-url', 'rsc', 'next-router-state-tree', 'next-router-prefetch']) {
+    headers.delete(header);
+  }
 
   const upstream = await fetch(upstreamUrl, {
     method: request.method,
