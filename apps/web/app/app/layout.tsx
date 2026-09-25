@@ -75,7 +75,7 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
     return <div className="flex min-h-screen items-center justify-center bg-stone-50"><div className="flex flex-col items-center gap-3"><div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" /><p className="text-sm font-medium text-stone-500">Cargando Kompra...</p></div></div>;
   }
 
-  if (error || !effectiveSession) return null;
+  if (!effectiveSession) return null;
   if (!identityReady) return <div className="flex min-h-screen items-center justify-center bg-[#f7f8f4] text-sm text-[#64736c]">{identityError ? <p role="alert">No pudimos preparar tu perfil: {identityError}</p> : <p>Preparando tu espacio…</p>}</div>;
   return <><div className="min-h-screen">{children}</div><FriendNetwork /><ListAssignmentQuick /><CategoryQuickCreate /></>;
 }
