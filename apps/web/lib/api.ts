@@ -1,4 +1,4 @@
-import { authClient, getBootstrapSessionToken } from './auth-client';
+import { authClient } from './auth-client';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
@@ -11,7 +11,7 @@ export class ApiFetchError extends Error {
 
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const { data: session } = await authClient.getSession();
-  const token = (session?.session as { token?: string } | undefined)?.token ?? getBootstrapSessionToken();
+  const token = (session?.session as { token?: string } | undefined)?.token;
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
