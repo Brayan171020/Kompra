@@ -59,7 +59,7 @@ export function LoginForm() {
         <Field label="Correo electrónico" type="email" value={email} onChange={setEmail} autoComplete="email" />
         <Field label="Contraseña" type="password" value={password} onChange={setPassword} autoComplete="current-password" />
         <ErrorMessage message={errorMsg} />
-        {magicSent ? <p role="status" className="rounded-xl bg-[#f0f6df] px-4 py-3 text-sm leading-6 text-[#52712e]">Revisa tu correo: te enviamos un enlace de acceso.</p> : null}
+        {magicSent ? <p role="status" className="rounded-xl bg-[#f0f6df] px-4 py-3 text-sm leading-6 text-[#52712e]">Te hemos enviado un enlace de acceso a tu correo.</p> : null}
         <button disabled={loading} className="inline-flex h-13 w-full items-center justify-center gap-2 rounded-2xl bg-[#173d34] px-5 text-sm font-semibold text-white transition hover:bg-[#245649] disabled:cursor-wait disabled:opacity-60">{loading ? <LoaderCircle className="animate-spin" size={18} /> : <LogIn size={18} />} {loading ? 'Iniciando sesión...' : 'Iniciar sesión'}</button>
       </form>
       <button type="button" onClick={sendMagicLink} disabled={magicLoading} className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-2xl border border-[#cfe0b6] bg-[#edf5df] px-4 text-sm font-semibold text-[#52712e] transition hover:bg-[#e3efc8] disabled:opacity-60"><KeyRound size={17} /> {magicLoading ? 'Enviando enlace…' : 'Enviar enlace de acceso a mi correo'}</button>

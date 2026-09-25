@@ -47,12 +47,16 @@ const auth = betterAuth({
     updateAge: 60 * 60 * 24,
   },
   rateLimit: { enabled: true, window: 60, max: 5, storage: 'memory' },
-  socialProviders: process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? {
+  // Keep the provider registered even when local credentials are not present.
+  // This prevents Better Auth from returning "Provider not found"; production
+  // must still provide the credentials issued for the configured Google app.
+  socialProviders: {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+      clientId: process.env.GOOGLE_CLIENT_ID ?? '',
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
+      enabled: true,
     },
-  } : undefined,
+  },
   plugins: [
     bearer(),
     magicLink({
