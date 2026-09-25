@@ -58,7 +58,10 @@ function normalizeSessionCookie(cookie: string): string {
   let normalized = cookie
     .replace(/;\s*Domain=[^;]+/gi, '')
     .replace(/;\s*Path=[^;]+/gi, '')
-    .replace(/;\s*SameSite=[^;]+/gi, '');
+    .replace(/;\s*SameSite=[^;]+/gi, '')
+    // This proxy converts the upstream partitioned cookie into a first-party
+    // Lax cookie; keeping Partitioned alongside SameSite=Lax is invalid.
+    .replace(/;\s*Partitioned(?=;|$)/gi, '');
 
   normalized += '; Path=/; SameSite=Lax';
   if (!/;\s*HttpOnly(?:;|$)/i.test(normalized)) normalized += '; HttpOnly';
