@@ -30,13 +30,15 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
 
     let cancelled = false;
     getSessionFromUrlToken(tokenParam)
-      .then(({ data }) => {
+      .then(({ data, error: bootstrapError }) => {
         if (cancelled) return;
         if (data) {
           setUrlSession(data);
           for (const name of ['neon_auth_session_token', 'neon-auth-session-token', 'session_token', 'token']) params.delete(name);
           const cleanUrl = `${window.location.pathname}${params.toString() ? `?${params.toString()}` : ''}${window.location.hash}`;
           window.history.replaceState(window.history.state, '', cleanUrl);
+        } else if (bootstrapError) {
+          console.error('[Kompra] No se pudo validar la sesión de retorno de Neon.', bootstrapError);
         }
       })
       .catch((cause: unknown) => {
