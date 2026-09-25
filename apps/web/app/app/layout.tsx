@@ -23,13 +23,16 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
     setIdentityReady(false);
     apiFetch('/users/me')
       .then(() => setIdentityReady(true))
-      .catch((cause: Error) => {
+      .catch((cause: unknown) => {
+        const error = cause as Error & { status?: number; body?: unknown };
         console.error('[Kompra] No se pudo sincronizar la identidad con /api/v1/users/me.', {
-          message: cause.message,
+          status: error.status,
+          body: error.body,
+          message: error.message,
           userId: session.user.id,
           endpoint: '/api/v1/users/me',
         });
-        setIdentityError(cause.message);
+        setIdentityError(error.message || 'Error desconocido al sincronizar la identidad.');
       });
   }, [isPending, session]);
 

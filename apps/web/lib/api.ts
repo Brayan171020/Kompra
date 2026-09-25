@@ -2,6 +2,13 @@ import { authClient } from './auth-client';
 
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:4000';
 
+export class ApiFetchError extends Error {
+  constructor(message: string, readonly status: number, readonly body: unknown) {
+    super(message);
+    this.name = 'ApiFetchError';
+  }
+}
+
 export async function apiFetch<T>(path: string, options: RequestInit = {}): Promise<T> {
   const { data: session } = await authClient.getSession();
   const token = (session?.session as { token?: string } | undefined)?.token;
@@ -17,7 +24,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   });
   if (!response.ok) {
     const payload = await response.json().catch(() => null) as { message?: string } | null;
-    throw new Error(payload?.message ?? 'No pudimos completar la operación.');
+    throw new ApiFetchError(payload?.message ?? 'No pudimos completar la operación.', response.status, payload);
   }
   return response.status === 204 ? (undefined as T) : response.json() as Promise<T>;
 }
