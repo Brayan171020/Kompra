@@ -20,7 +20,12 @@ export class UsersService {
 
   async syncFromAuth(user: AuthUserSnapshot): Promise<UserEntity> {
     const role = user.role === UserRole.CREATOR ? UserRole.CREATOR : UserRole.BUYER;
-    await this.usersRepository.upsert({ id: user.id, name: user.name, email: user.email, role, shareCode: this.makeShareCode(user.id) }, ['id']);
+    const email = user.email.trim().toLowerCase();
+    const name = user.name.trim() || email.split('@')[0];
+    const shareCode = this.makeShareCode(user.id);
+    // Google users are created first in neon_auth. This upsert immediately
+    // materializes the corresponding domain identity and is safe to repeat.
+    await this.usersRepository.upsert({ id: user.id, name, email, role, shareCode }, ['id']);
     return this.usersRepository.findOneByOrFail({ id: user.id });
   }
 

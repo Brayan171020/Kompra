@@ -36,7 +36,7 @@ async function proxy(request: NextRequest): Promise<NextResponse> {
 
   for (const cookie of getSetCookies(upstream.headers)) {
     // The browser must store the cookie for Vercel, never for neon.tech.
-    responseHeaders.append('set-cookie', cookie.replace(/;\s*Domain=[^;]+/gi, ''));
+    responseHeaders.append('set-cookie', normalizeSessionCookie(cookie));
   }
 
   let responseBody: BodyInit | null = upstream.body;
@@ -52,6 +52,18 @@ async function proxy(request: NextRequest): Promise<NextResponse> {
     statusText: upstream.statusText,
     headers: responseHeaders,
   });
+}
+
+function normalizeSessionCookie(cookie: string): string {
+  let normalized = cookie
+    .replace(/;\s*Domain=[^;]+/gi, '')
+    .replace(/;\s*Path=[^;]+/gi, '')
+    .replace(/;\s*SameSite=[^;]+/gi, '');
+
+  normalized += '; Path=/; SameSite=Lax';
+  if (!/;\s*HttpOnly(?:;|$)/i.test(normalized)) normalized += '; HttpOnly';
+  if (!/;\s*Secure(?:;|$)/i.test(normalized)) normalized += '; Secure';
+  return normalized;
 }
 
 function rewriteOAuthCallback(location: string, request: NextRequest, upstreamBase: string): string {

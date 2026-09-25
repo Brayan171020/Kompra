@@ -8,6 +8,7 @@ export async function apiFetch<T>(path: string, options: RequestInit = {}): Prom
   const headers = new Headers(options.headers);
   headers.set('Content-Type', 'application/json');
   if (token) headers.set('Authorization', `Bearer ${token}`);
+  else if (session?.user) console.warn('[Kompra] Sesión activa sin token Bearer para la API.', { userId: session.user.id, path });
 
   const response = await fetch(`${apiUrl}/api/v1${path}`, {
     ...options,
