@@ -9,6 +9,8 @@ const trustedOrigins = (process.env.TRUSTED_ORIGINS ?? 'http://localhost:3000')
   .split(',')
   .map((origin) => origin.trim())
   .filter(Boolean);
+const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim();
+const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
 
 const databasePool = new Pool({
   connectionString: databaseUrl,
@@ -47,16 +49,12 @@ const auth = betterAuth({
     updateAge: 60 * 60 * 24,
   },
   rateLimit: { enabled: true, window: 60, max: 5, storage: 'memory' },
-  // Keep the provider registered even when local credentials are not present.
-  // This prevents Better Auth from returning "Provider not found"; production
-  // must still provide the credentials issued for the configured Google app.
-  socialProviders: {
+  socialProviders: googleClientId && googleClientSecret ? {
     google: {
-      clientId: process.env.GOOGLE_CLIENT_ID ?? '',
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? '',
-      enabled: true,
+      clientId: googleClientId,
+      clientSecret: googleClientSecret,
     },
-  },
+  } : undefined,
   plugins: [
     bearer(),
     magicLink({

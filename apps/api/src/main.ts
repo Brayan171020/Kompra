@@ -4,15 +4,21 @@ import express from 'express';
 import helmet from 'helmet';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './auth/auth.js';
 import { AppModule } from './app.module.js';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter.js';
+import { HttpLoggingInterceptor } from './common/interceptors/http-logging.interceptor.js';
+import { RequestLoggerMiddleware } from './common/middleware/request-logger.middleware.js';
 
 async function bootstrap(): Promise<void> {
   try {
-    const app = await NestFactory.create(AppModule, { bodyParser: false });
+    const app = await NestFactory.create<NestExpressApplication>(AppModule, { bodyParser: false });
+    app.set('trust proxy', 1);
+    const requestLogger = new RequestLoggerMiddleware();
+    app.use(requestLogger.use.bind(requestLogger));
     const trustedOrigins = (process.env.TRUSTED_ORIGINS || 'http://localhost:3000')
       .split(',')
       .map((origin) => origin.trim())
@@ -46,6 +52,7 @@ async function bootstrap(): Promise<void> {
     app.enableVersioning({ type: VersioningType.URI, defaultVersion: '1' });
     app.useGlobalPipes(new ValidationPipe({ whitelist: true, forbidNonWhitelisted: true, transform: true }));
     app.useGlobalFilters(new HttpExceptionFilter());
+    app.useGlobalInterceptors(new HttpLoggingInterceptor());
 
     const swaggerConfig = new DocumentBuilder()
       .setTitle('Kompra API')

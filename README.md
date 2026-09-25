@@ -85,6 +85,7 @@ TRUSTED_ORIGINS=https://app.example.com
 GOOGLE_CLIENT_ID=<google oauth client id>
 GOOGLE_CLIENT_SECRET=<google oauth client secret>
 MAGIC_LINK_WEBHOOK_URL=<trusted email delivery webhook>
+NEXT_PUBLIC_NEON_AUTH_URL=https://ep-fancy-star-b5njfgl0.neonauth.c-7.us-east-2.aws.neon.tech/neondb/auth
 ```
 
 `MAGIC_LINK_WEBHOOK_URL` receives `{ email, url }` as JSON. In local development,
@@ -93,17 +94,13 @@ external delivery. Production startup/requests require a configured delivery
 endpoint.
 
 The production Neon branch contains the managed `neon_auth` schema and its
-`user`, `session`, `account` and `project_config` tables. Kompra deliberately
-exposes Better Auth through the NestJS `/api/v1/auth` proxy so the API guard and
-the browser share the same HTTP-only cookie. The managed Neon Auth endpoint is
-kept as `NEON_AUTH_URL` documentation/reference; pointing only the browser at
-that endpoint would scope its cookie to another host and break `/users/me`.
-
-Google is enabled in the Better Auth configuration and requires the server-side
-`GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` values. The Neon project currently
-has Google configured as a shared provider and email as a shared provider; that
-Neon Console configuration does not inject OAuth secrets into a separately
-hosted Better Auth process.
+`user`, `session`, `account` and `project_config` tables. Kompra exposes
+email/password and Magic Link through the NestJS `/api/v1/auth` proxy. When
+`NEXT_PUBLIC_NEON_AUTH_URL` is configured, Google OAuth is sent directly to the
+managed Neon Auth endpoint because Neon owns the Shared Keys. The local Google
+provider is registered only when both server-side `GOOGLE_CLIENT_ID` and
+`GOOGLE_CLIENT_SECRET` are present, preventing
+`CLIENT_ID_AND_SECRET_REQUIRED` when Google is managed by Neon.
 
 For the API, configure `apps/api/.env` from `apps/api/.env.example`. Better Auth
 will additionally require `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` when Phase
