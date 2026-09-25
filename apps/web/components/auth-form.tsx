@@ -47,7 +47,8 @@ export function LoginForm() {
 
   async function signInWithGoogle() {
     setErrorMsg('');
-    const { error } = await authClient.signIn.social({ provider: 'google', callbackURL: '/app' });
+    const callbackURL = typeof window !== 'undefined' ? `${window.location.origin}/app` : '/app';
+    const { error } = await authClient.signIn.social({ provider: 'google', callbackURL });
     if (error) setErrorMsg(error.message || 'No pudimos iniciar sesión con Google.');
   }
 
