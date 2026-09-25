@@ -27,14 +27,25 @@ export type AuthSessionData = Awaited<ReturnType<typeof authClient.getSession>>[
 
 export async function getSessionFromUrlToken(token: string): Promise<{ data: AuthSessionData | null; error?: unknown }> {
   setBootstrapSessionToken(token);
-  const response = await fetch(`${authProxyUrl}/get-session`, {
-    headers: { Authorization: `Bearer ${token}` },
+  const response = await fetch('/api/auth/callback/neon', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ token }),
     credentials: 'include',
+    cache: 'no-store',
   });
   const payload = await response.json().catch(() => null) as { data?: AuthSessionData | null; error?: unknown } | AuthSessionData | null;
-  if (!response.ok) return { data: null, error: payload };
-  if (payload && typeof payload === 'object' && 'data' in payload) return { data: payload.data ?? null };
-  return { data: payload as AuthSessionData | null };
+  if (!response.ok) {
+    setBootstrapSessionToken(null);
+    return { data: null, error: payload };
+  }
+
+  const validatedSession = payload && typeof payload === 'object' && 'data' in payload
+    ? payload.data ?? null
+    : payload as AuthSessionData | null;
+  const refreshed = await authClient.getSession({ query: { disableCookieCache: true } }).catch(() => null);
+  if (refreshed?.data) setBootstrapSessionToken(null);
+  return { data: refreshed?.data ?? validatedSession };
 }
 
 export const { useSession, signIn, signUp, signOut } = authClient;

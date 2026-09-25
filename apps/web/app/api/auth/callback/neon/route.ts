@@ -33,6 +33,33 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
   return response;
 }
 
+/** Exchange a callback token for a same-origin, first-party session cookie. */
+export async function POST(request: NextRequest): Promise<NextResponse> {
+  const body = await request.json().catch(() => null) as { token?: unknown } | null;
+  const token = typeof body?.token === 'string' ? body.token.trim() : '';
+  if (!token) return NextResponse.json({ message: 'A session token is required' }, { status: 400 });
+
+  const validation = await fetch(`${neonAuthUrl}/get-session`, {
+    headers: { Authorization: `Bearer ${token}` },
+    cache: 'no-store',
+  });
+  const payload = await validation.json().catch(() => null);
+  if (!validation.ok || !payload) {
+    return NextResponse.json({ message: 'The session token is invalid or expired' }, { status: 401 });
+  }
+
+  const response = NextResponse.json(payload, { headers: { 'Cache-Control': 'no-store' } });
+  response.cookies.set({
+    name: sessionCookieName,
+    value: token,
+    httpOnly: true,
+    secure: request.nextUrl.protocol === 'https:',
+    sameSite: 'lax',
+    path: '/',
+  });
+  return response;
+}
+
 function getSafeReturnTo(value: string | null): string {
   if (!value || !value.startsWith('/app')) return '/app';
   return value;
