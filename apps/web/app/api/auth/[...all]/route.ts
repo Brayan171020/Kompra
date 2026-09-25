@@ -1,0 +1,72 @@
+import { NextRequest, NextResponse } from 'next/server';
+
+const neonAuthUrl = (process.env.NEXT_PUBLIC_NEON_AUTH_URL
+  ?? 'https://ep-fancy-star-b5njfgl0.neonauth.c-7.us-east-2.aws.neon.tech/neondb/auth').replace(/\/$/, '');
+
+export const dynamic = 'force-dynamic';
+
+async function proxy(request: NextRequest): Promise<NextResponse> {
+  const upstreamBase = neonAuthUrl;
+  const path = new URL(request.url).pathname.replace(/^\/api\/auth\/?/, '');
+  const upstreamUrl = `${upstreamBase}/${path}${new URL(request.url).search}`;
+  const headers = new Headers(request.headers);
+  headers.delete('host');
+  headers.delete('content-length');
+  headers.set('x-forwarded-host', request.headers.get('host') ?? '');
+
+  const upstream = await fetch(upstreamUrl, {
+    method: request.method,
+    headers,
+    body: request.method === 'GET' || request.method === 'HEAD' ? undefined : await request.arrayBuffer(),
+    redirect: 'manual',
+  });
+
+  const responseHeaders = new Headers(upstream.headers);
+  responseHeaders.delete('content-encoding');
+  responseHeaders.delete('content-length');
+  responseHeaders.delete('set-cookie');
+
+  const location = upstream.headers.get('location');
+  if (location) responseHeaders.set('location', rewriteOAuthCallback(location, request, upstreamBase));
+
+  for (const cookie of getSetCookies(upstream.headers)) {
+    // The browser must store the cookie for Vercel, never for neon.tech.
+    responseHeaders.append('set-cookie', cookie.replace(/;\s*Domain=[^;]+/gi, ''));
+  }
+
+  return new NextResponse(upstream.body, {
+    status: upstream.status,
+    statusText: upstream.statusText,
+    headers: responseHeaders,
+  });
+}
+
+function rewriteOAuthCallback(location: string, request: NextRequest, upstreamBase: string): string {
+  try {
+    const redirect = new URL(location);
+    const callback = redirect.searchParams.get('redirect_uri');
+    if (callback?.startsWith(`${upstreamBase}/`)) {
+      const upstreamPath = new URL(upstreamBase).pathname.replace(/\/$/, '');
+      const callbackPath = new URL(callback).pathname.slice(upstreamPath.length).replace(/^\/+/, '');
+      redirect.searchParams.set('redirect_uri', `${request.nextUrl.origin}/api/auth/${callbackPath}`);
+      return redirect.toString();
+    }
+  } catch {
+    // Preserve non-URL redirect headers unchanged.
+  }
+  return location;
+}
+
+function getSetCookies(headers: Headers): string[] {
+  const getSetCookie = (headers as Headers & { getSetCookie?: () => string[] }).getSetCookie;
+  if (getSetCookie) return getSetCookie.call(headers);
+  const cookie = headers.get('set-cookie');
+  return cookie ? [cookie] : [];
+}
+
+export const GET = proxy;
+export const POST = proxy;
+export const PUT = proxy;
+export const PATCH = proxy;
+export const DELETE = proxy;
+export const OPTIONS = proxy;
