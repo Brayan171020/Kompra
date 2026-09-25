@@ -1,7 +1,7 @@
 import { PostgresDialect } from 'kysely';
 import { Pool } from 'pg';
 import { betterAuth } from 'better-auth';
-import { bearer } from 'better-auth/plugins';
+import { bearer, magicLink } from 'better-auth/plugins';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const databaseUrl = process.env.DATABASE_URL ?? 'postgresql://localhost:5432/kompra';
@@ -17,7 +17,7 @@ const databasePool = new Pool({
 
 export { trustedOrigins };
 
-export const auth = betterAuth({
+const auth = betterAuth({
   appName: 'Kompra',
   baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:4000',
   basePath: '/api/v1/auth',
@@ -47,7 +47,33 @@ export const auth = betterAuth({
     updateAge: 60 * 60 * 24,
   },
   rateLimit: { enabled: true, window: 60, max: 5, storage: 'memory' },
-  plugins: [bearer()],
+  socialProviders: process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET ? {
+    google: {
+      clientId: process.env.GOOGLE_CLIENT_ID,
+      clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+    },
+  } : undefined,
+  plugins: [
+    bearer(),
+    magicLink({
+      expiresIn: 60 * 15,
+      rateLimit: { window: 60, max: 5 },
+      sendMagicLink: async ({ email, url }) => {
+        const webhookUrl = process.env.MAGIC_LINK_WEBHOOK_URL;
+        if (!webhookUrl) {
+          if (isProduction) throw new Error('MAGIC_LINK_WEBHOOK_URL must be configured in production');
+          console.info(`[Kompra] Magic link for ${email}: ${url}`);
+          return;
+        }
+        const response = await fetch(webhookUrl, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, url }),
+        });
+        if (!response.ok) throw new Error(`Magic link delivery failed with status ${response.status}`);
+      },
+    }),
+  ],
   advanced: {
     database: {
       generateId: 'uuid',
@@ -59,6 +85,11 @@ export const auth = betterAuth({
       secure: isProduction,
     },
   },
-});
+}) as unknown as ReturnType<typeof betterAuth>;
 
-export type AuthSession = typeof auth.$Infer.Session;
+export { auth };
+
+export type AuthSession = {
+  user: { id: string; name: string; email: string; role?: string | null };
+  session: { id: string };
+};

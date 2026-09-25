@@ -23,8 +23,8 @@ export default function Home() {
 
   return (
     <main className="min-h-screen overflow-hidden bg-[#f7f8f4] text-[#18231f]">
-      <div className="mx-auto flex min-h-screen max-w-7xl flex-col px-5 py-5 sm:px-8 lg:px-12">
-        <header className="flex items-center justify-between border-b border-[#dce4dd] pb-5">
+      <div className="flex min-h-screen w-full flex-col py-5">
+        <header className="flex w-full items-center justify-between border-b px-6 lg:px-12 border-[#dce4dd] pb-5">
           <div className="flex items-center gap-2.5"><span className="grid size-9 place-items-center rounded-xl bg-[#173d34] text-sm font-bold text-[#d9f96e]">K</span><span className="text-lg font-semibold tracking-[-0.04em]">kompra<span className="text-[#83a996]">.</span></span></div>
           <nav className="flex items-center gap-2" aria-label="Navegación principal">
             {isAuthenticated ? <><Link href="/app" className="hidden rounded-full bg-[#173d34] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#245649] sm:inline-flex">Ir a la App</Link><button onClick={() => signOut({ fetchOptions: { onSuccess: () => window.location.reload() } })} className="rounded-full px-3 py-2.5 text-xs font-semibold text-[#64736c] transition hover:bg-white hover:text-[#173d34]">Cerrar sesión</button></> : <><Link href="/login" className="rounded-full px-3 py-2.5 text-xs font-semibold text-[#64736c] transition hover:bg-white hover:text-[#173d34]">Iniciar sesión</Link><Link href="/register" className="rounded-full bg-[#173d34] px-4 py-2.5 text-xs font-semibold text-white transition hover:bg-[#245649]">Registrarse</Link></>}
@@ -32,7 +32,7 @@ export default function Home() {
           <div className="flex items-center gap-2 text-xs font-medium text-[#60716a]"><span className={`size-2 rounded-full ${connection === 'connected' ? 'bg-[#8fbf3f]' : connection === 'offline' ? 'bg-[#d7795f]' : 'animate-pulse bg-[#d7ad4a]'}`} />{statusLabel}</div>
         </header>
 
-        <section className="grid flex-1 items-center gap-12 py-14 lg:grid-cols-[1.1fr_.9fr] lg:py-20">
+        <section className="mx-auto grid w-full max-w-7xl flex-1 items-center gap-12 px-6 py-14 lg:grid-cols-[1.1fr_.9fr] lg:py-20">
           <div className="max-w-2xl">
             <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#cddccf] bg-white/70 px-3 py-1.5 text-xs font-semibold uppercase tracking-[.14em] text-[#47725c]"><Sparkles size={14} /> Orden cotidiano, sin fricción</div>
             <h1 className="max-w-xl text-5xl font-semibold leading-[.96] tracking-[-.065em] sm:text-7xl">Las compras funcionan mejor <span className="text-[#6b9140]">con contexto.</span></h1>
@@ -51,7 +51,7 @@ export default function Home() {
           </div>
         </section>
 
-        <footer className="grid gap-3 border-t border-[#dce4dd] py-6 sm:grid-cols-3"><Feature icon={<ClipboardList />} title="Listas vivas" text="Todos saben qué falta." /><Feature icon={<Package />} title="Despensa al día" text="Menos desperdicio, más control." /><Feature icon={<Check />} title="Compras resueltas" text="Un hogar más tranquilo." /></footer>
+        <footer className="grid w-full gap-3 border-t px-6 lg:px-12 border-[#dce4dd] py-6 sm:grid-cols-3"><Feature icon={<ClipboardList />} title="Listas vivas" text="Todos saben qué falta." /><Feature icon={<Package />} title="Despensa al día" text="Menos desperdicio, más control." /><Feature icon={<Check />} title="Compras resueltas" text="Un hogar más tranquilo." /></footer>
       </div>
     </main>
   );

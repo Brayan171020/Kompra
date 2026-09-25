@@ -72,6 +72,26 @@ pnpm test
 pnpm --filter api run test:e2e
 ```
 
+### Authentication providers
+
+The API supports Better Auth email/password, Magic Link and optional Google OAuth.
+Configure the following variables in the deployment environment when enabling the
+corresponding provider:
+
+```text
+BETTER_AUTH_SECRET=<at least 32 characters>
+BETTER_AUTH_URL=https://api.example.com
+TRUSTED_ORIGINS=https://app.example.com
+GOOGLE_CLIENT_ID=<google oauth client id>
+GOOGLE_CLIENT_SECRET=<google oauth client secret>
+MAGIC_LINK_WEBHOOK_URL=<trusted email delivery webhook>
+```
+
+`MAGIC_LINK_WEBHOOK_URL` receives `{ email, url }` as JSON. In local development,
+when it is absent, Better Auth logs the generated link instead of attempting an
+external delivery. Production startup/requests require a configured delivery
+endpoint.
+
 For the API, configure `apps/api/.env` from `apps/api/.env.example`. Better Auth
 will additionally require `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` when Phase
 1 is implemented.

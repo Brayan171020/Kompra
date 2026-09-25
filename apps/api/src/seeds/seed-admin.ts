@@ -37,7 +37,7 @@ async function seedAdmin(): Promise<void> {
 
     if (!userId) {
       const result = await auth.api.signUpEmail({
-        body: { email: adminEmail, password, name: adminName, role: UserRole.CREATOR },
+      body: { email: adminEmail, password, name: adminName, role: UserRole.CREATOR } as never,
       });
       userId = result.user.id;
       console.log(`Created Better Auth administrator ${adminEmail}.`);
