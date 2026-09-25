@@ -60,7 +60,10 @@ respuesta al navegador bajo el dominio de Vercel. El proxy elimina el atributo
 En el inicio OAuth, el proxy reescribe el `redirect_uri` interno de Neon hacia
 `/api/auth/callback/*`; así el callback también atraviesa Vercel y la cookie se
 establece bajo el dominio de la aplicación. Las redirecciones externas hacia
-Google se conservan sin modificación.
+Google se conservan sin modificación. Como el inicio social se ejecuta mediante
+`fetch`, la UI solicita `disableRedirect: true` y navega explícitamente con
+`window.location.assign(data.url)`; el proxy aplica la misma reescritura al
+campo `url` del JSON `{ url, redirect }`.
 
 El monorepo usa pnpm workspaces:
 

@@ -39,7 +39,15 @@ async function proxy(request: NextRequest): Promise<NextResponse> {
     responseHeaders.append('set-cookie', cookie.replace(/;\s*Domain=[^;]+/gi, ''));
   }
 
-  return new NextResponse(upstream.body, {
+  let responseBody: BodyInit | null = upstream.body;
+  if (path === 'sign-in/social' && upstream.headers.get('content-type')?.includes('application/json')) {
+    const payload = await upstream.json() as { url?: string; redirect?: boolean; [key: string]: unknown };
+    if (payload.url) payload.url = rewriteOAuthCallback(payload.url, request, upstreamBase);
+    responseBody = JSON.stringify(payload);
+    responseHeaders.set('content-type', 'application/json');
+  }
+
+  return new NextResponse(responseBody, {
     status: upstream.status,
     statusText: upstream.statusText,
     headers: responseHeaders,

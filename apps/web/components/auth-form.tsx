@@ -55,8 +55,9 @@ export function LoginForm() {
   async function signInWithGoogle() {
     setErrorMsg('');
     const callbackURL = typeof window !== 'undefined' ? `${window.location.origin}/app` : '/app';
-    const { error } = await authClient.signIn.social({ provider: 'google', callbackURL });
+    const { data, error } = await authClient.signIn.social({ provider: 'google', callbackURL, disableRedirect: true });
     if (error) setErrorMsg(error.message || 'No pudimos iniciar sesión con Google.');
+    else if (data?.url) window.location.assign(data.url);
   }
 
   return <AuthShell title="Qué bueno verte." description="Entra para retomar tus encargos y seguir organizando tus compras.">
