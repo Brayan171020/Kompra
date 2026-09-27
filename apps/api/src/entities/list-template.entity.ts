@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, ManyToOne, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { TemplateItemEntity } from './template-item.entity.js';
 import { UserEntity } from './user.entity.js';
 
@@ -10,7 +11,7 @@ export class ListTemplateEntity {
   @Column({ type: 'varchar', length: 255 }) creatorId: string;
   @ManyToOne(() => UserEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'creatorId' }) creator: UserEntity;
-  @OneToMany(() => TemplateItemEntity, (item) => item.template, { cascade: false }) items: TemplateItemEntity[];
+  @OneToMany(() => TemplateItemEntity, (item) => item.template, { cascade: false }) items: Relation<TemplateItemEntity[]>;
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;
 }
