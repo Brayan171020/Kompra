@@ -22,17 +22,19 @@ export class ProductsAndAssignmentInventoryChoice1780000002000 implements Migrat
     await queryRunner.query(`INSERT INTO "products" ("creatorId", "categoryId", "name", "quantityType")
       SELECT DISTINCT ON (list."creatorId", item."categoryId"::uuid, lower(item."name")) list."creatorId", item."categoryId"::uuid, item."name", item."quantityType"::text::"products_quantityType_enum"
       FROM "list_items" item INNER JOIN "shopping_lists" list ON list."id" = item."listId"::uuid
+        INNER JOIN "users" creator ON creator."id" = list."creatorId"
       ORDER BY list."creatorId", item."categoryId"::uuid, lower(item."name"), item."createdAt" DESC
       ON CONFLICT DO NOTHING`);
     await queryRunner.query(`INSERT INTO "products" ("creatorId", "categoryId", "name", "quantityType")
       SELECT DISTINCT ON (template."creatorId", item."categoryId", lower(item."name")) template."creatorId", item."categoryId", item."name", item."quantityType"::text::"products_quantityType_enum"
       FROM "template_items" item INNER JOIN "list_templates" template ON template."id" = item."templateId"
+        INNER JOIN "users" creator ON creator."id" = template."creatorId"
       ORDER BY template."creatorId", item."categoryId", lower(item."name"), template."updatedAt" DESC
       ON CONFLICT DO NOTHING`);
     await queryRunner.query(`INSERT INTO "products" ("creatorId", "categoryId", "name", "quantityType")
       SELECT DISTINCT ON (purchase."creatorId", purchase."categoryId"::uuid, lower(purchase."productName")) purchase."creatorId", purchase."categoryId"::uuid, purchase."productName",
         CASE WHEN purchase."unit" IN ('kg', 'g', 'litro') THEN 'WEIGHT'::"products_quantityType_enum" ELSE 'UNIT'::"products_quantityType_enum" END
-      FROM "inventory_purchases" purchase
+      FROM "inventory_purchases" purchase INNER JOIN "users" creator ON creator."id" = purchase."creatorId"::text
       ORDER BY purchase."creatorId", purchase."categoryId"::uuid, lower(purchase."productName"), purchase."purchaseDate" DESC
       ON CONFLICT DO NOTHING`);
   }
