@@ -82,6 +82,7 @@ corresponding provider:
 BETTER_AUTH_SECRET=<at least 32 characters>
 BETTER_AUTH_URL=https://api.example.com
 TRUSTED_ORIGINS=https://app.example.com
+FRONTEND_URL=https://app.example.com
 GOOGLE_CLIENT_ID=<google oauth client id>
 GOOGLE_CLIENT_SECRET=<google oauth client secret>
 MAGIC_LINK_WEBHOOK_URL=<trusted email delivery webhook>

@@ -4,6 +4,9 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator.js';
 import type { AuthSession } from '../auth/auth.js';
 import { UsersService } from './users.service.js';
 import { LinkContactDto } from './dto/link-contact.dto.js';
+import { InviteBuyerDto } from './dto/invite-buyer.dto.js';
+import { Roles } from '../auth/decorators/roles.decorator.js';
+import { UserRole } from '../entities/user.entity.js';
 
 @ApiTags('users')
 @ApiBearerAuth('bearer')
@@ -21,6 +24,7 @@ export class UsersController {
       id: user.id,
       name: user.name,
       email: user.email,
+      emailVerified: user.emailVerified,
       role: typeof user.role === 'string' ? user.role : undefined,
     });
     return {
@@ -40,6 +44,14 @@ export class UsersController {
   @Post('contacts/link')
   @Version('1')
   linkContact(@Body() dto: LinkContactDto, @CurrentUser() user: AuthSession['user']) { return this.usersService.linkContact(user.id, dto.code); }
+
+  @Post('buyer-invitations')
+  @Version('1')
+  @Roles(UserRole.CREATOR)
+  @ApiOperation({ summary: 'Invite a buyer to Kompra by email' })
+  inviteBuyer(@Body() dto: InviteBuyerDto, @CurrentUser() user: AuthSession['user']) {
+    return this.usersService.inviteBuyer(user.id, dto.email);
+  }
 }
 
 interface UserEntityResponse { id: string; name: string; email: string; role: string; createdAt: Date }

@@ -39,8 +39,8 @@ const auth = betterAuth({
       role: {
         type: 'string',
         required: false,
-        defaultValue: 'BUYER',
-        input: true,
+        defaultValue: 'CREATOR',
+        input: false,
       },
     },
   },
@@ -99,6 +99,6 @@ const auth = betterAuth({
 export { auth };
 
 export type AuthSession = {
-  user: { id: string; name: string; email: string; role?: string | null };
+  user: { id: string; name: string; email: string; emailVerified?: boolean; role?: string | null };
   session: { id: string };
 };

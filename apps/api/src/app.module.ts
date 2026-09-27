@@ -11,6 +11,7 @@ import { ShoppingListEntity } from './entities/shopping-list.entity.js';
 import { UserEntity } from './entities/user.entity.js';
 import { UserContactEntity } from './entities/user-contact.entity.js';
 import { TemplateItemEntity } from './entities/template-item.entity.js';
+import { BuyerInvitationEntity } from './entities/buyer-invitation.entity.js';
 import { AuthModule } from './auth/auth.module.js';
 import { HealthModule } from './health/health.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
@@ -20,6 +21,7 @@ import { ItemsModule } from './items/items.module.js';
 import { InventoryModule } from './inventory/inventory.module.js';
 import { TemplatesModule } from './templates/templates.module.js';
 import { AddListTemplatesAndItemCost1780000000000 } from './migrations/1780000000000-add-list-templates-and-item-cost.js';
+import { BuyerEmailInvitations1780000001000 } from './migrations/1780000001000-buyer-email-invitations.js';
 
 @Module({
   imports: [
@@ -32,8 +34,8 @@ import { AddListTemplatesAndItemCost1780000000000 } from './migrations/178000000
         type: 'postgres' as const,
         url: config.getOrThrow<string>('DATABASE_URL'),
         ssl: { rejectUnauthorized: false },
-        entities: [UserEntity, UserContactEntity, CategoryEntity, ShoppingListEntity, ListItemEntity, InventoryPurchaseEntity, ListTemplateEntity, TemplateItemEntity],
-        migrations: [AddListTemplatesAndItemCost1780000000000],
+        entities: [UserEntity, UserContactEntity, CategoryEntity, ShoppingListEntity, ListItemEntity, InventoryPurchaseEntity, ListTemplateEntity, TemplateItemEntity, BuyerInvitationEntity],
+        migrations: [AddListTemplatesAndItemCost1780000000000, BuyerEmailInvitations1780000001000],
         migrationsRun: true,
         synchronize: config.get('NODE_ENV') === 'development',
         autoLoadEntities: false,

@@ -92,7 +92,7 @@ El monorepo usa pnpm workspaces:
 
 - Base path: `/api/v1/auth`.
 - Registro email/contraseña habilitado y `autoSignIn: true`.
-- Campo adicional `role`, por defecto `BUYER`, admitido durante el registro.
+- Campo adicional `role`, por defecto `CREATOR` y no editable durante el registro.
 - Sesión de 7 días (`expiresIn`) y renovación de actividad cada día (`updateAge`).
 - Rate limit propio de Better Auth: ventana de 60 segundos y máximo de 5 solicitudes, almacenado en memoria.
 - Plugin `bearer()` para aceptar token.
@@ -132,12 +132,14 @@ No existe un rol `ADMIN`, `REPARTIDOR` ni un panel admin en el frontend. El seed
 
 ### Asignación, sincronización y presentación de roles
 
-- El registro por correo inicia con `CREATOR` seleccionado, pero permite elegir `BUYER`. El inicio de sesión con Google no envía el selector de rol; Better Auth aplica el valor por defecto `BUYER` a usuarios OAuth nuevos.
-- Better Auth guarda el campo adicional `role` en `neon_auth.user`. `AuthGuard` obtiene ese rol de la sesión Better Auth o, para Bearer, de `neon_auth.user`. `GET /api/v1/users/me` copia el rol de la sesión al perfil `public.users`; solo conserva `CREATOR` como tal y normaliza cualquier otro valor a `BUYER`.
-- Por ello, elevar solamente `public.users.role` no cambia el rol usado por `RolesGuard`: hay que actualizar también `neon_auth.user.role`. Tras eso, `/users/me` sincroniza el perfil del dominio y el layout vuelve a leer el rol para renderizar las acciones.
+- Todo registro nuevo, incluido Google OAuth, comienza como `CREATOR`. El cliente no puede enviar `role` para autoasignarse `BUYER`.
+- `GET /api/v1/users/me` determina el rol en el backend: conserva el rol de una cuenta existente y crea nuevos perfiles como `CREATOR`. Una invitación pendiente solo asigna `BUYER` cuando el usuario inicia sesión con el correo verificado que recibió la invitación.
+- `POST /api/v1/users/buyer-invitations` permite a un `CREATOR` invitar por correo. La invitación caduca en siete días; al aceptarse, Kompra marca al usuario `BUYER` y lo vincula a la red del creador. La entrega usa `BUYER_INVITATION_WEBHOOK_URL` o el webhook configurado para Magic Link.
+- La migración `BuyerEmailInvitations1780000001000` convierte a `CREATOR` los roles `BUYER` anteriores al nuevo flujo y cambia el valor por defecto. Cuando `neon_auth.user.role` existe, también sincroniza allí el rol.
+- La identidad de Kompra en `public.users` es la fuente de la sincronización del perfil. El backend refleja el rol decidido en `neon_auth.user.role` solo si esa columna está disponible; no se confía en un rol enviado por el cliente.
 - En `/app`, las acciones para crear listas se ocultan a `BUYER` en escritorio y móvil. El botón flotante de categorías solo se monta para `CREATOR`. La API mantiene la autorización como control definitivo.
 - `ListAssignmentQuick` se monta para toda sesión y actualmente no se oculta por rol; la API rechaza el intento de un `BUYER` con `403`. `FriendNetwork` y el registro de inventario están disponibles para ambos roles.
-- `seed-admin.ts` usa `ADMIN_EMAIL` (por defecto `brayangt1710@gmail.com`) como cuenta principal y `CREATOR_EMAILS` (por defecto incluye `bjgamboa.19@est.ucab.edu.ve`) como lista adicional de cuentas existentes a elevar. `ADMIN_PASSWORD` solo se exige cuando hay que crear la cuenta principal. La elevación modifica `neon_auth.user` y sincroniza `public.users`; para correos adicionales, la fila de dominio debe existir. Los correos adicionales se elevan solo si ya existen en Neon Auth.
+- `seed-admin.ts` usa `ADMIN_EMAIL` (por defecto `brayangt1710@gmail.com`) como cuenta principal y `CREATOR_EMAILS` (por defecto incluye `bjgamboa.19@est.ucab.edu.ve`) como lista adicional de cuentas existentes a elevar. `ADMIN_PASSWORD` solo se exige cuando hay que crear la cuenta principal. La elevación modifica `neon_auth.user` y sincroniza `public.users`; para correos adicionales, la fila de dominio debe existir.
 - El repositorio define cómo se asignan y validan roles, pero no refleja el estado actual de una base Neon conectada; el rol de una cuenta real se confirma consultando esa base.
 
 ## 1.5 Persistencia y modelo de datos
@@ -223,7 +225,7 @@ Excepciones de negocio frecuentes: `BadRequestException` (`400`), `UnauthorizedE
 | Correo | Input email | Captura email | — | — | `required`. |
 | Contraseña | Input password | Captura contraseña | — | — | `required`, mínimo 8 caracteres. |
 | Creador / Comprador | Selector de botones | Establece `role` (`CREATOR` por defecto) | — | — | `aria-pressed`; solo cambia estado local. |
-| Crear mi cuenta | Form submit | Registra y autentica | Better Auth `POST /api/v1/auth/sign-up/email` | `{ name, email, password, role }` | Better Auth crea sesión automáticamente; navega a `/app`. |
+| Crear mi cuenta | Form submit | Registra y autentica | Better Auth `POST /api/v1/auth/sign-up/email` | `{ name, email, password }` | Better Auth crea sesión con rol inicial `CREATOR`; navega a `/app`. |
 | Iniciar sesión | Link | Cambia al login | — | — | `/login` |
 
 **Errores/estado:** `pending` muestra spinner y deshabilita submit. El callback `onError` coloca el mensaje Better Auth en `role="alert"`. Después de entrar a `/app`, el layout sincroniza el perfil de dominio mediante `/users/me`.
@@ -361,7 +363,7 @@ Better Auth se monta directamente con `toNodeHandler(auth)` bajo `/api/v1/auth`,
 
 | Método/ruta | Uso | Entrada | Resultado |
 |---|---|---|---|
-| `POST /api/auth/sign-up/email` | Registro | `{ name, email, password, role }` | Proxy Vercel → Neon Auth; crea identidad y cookie HTTP-only first-party. |
+| `POST /api/auth/sign-up/email` | Registro | `{ name, email, password }` | Proxy Vercel → Neon Auth; crea identidad como `CREATOR` y cookie HTTP-only first-party. |
 | `POST /api/auth/sign-in/email` | Login | `{ email, password }` | Proxy Vercel → Neon Auth; establece la cookie bajo el dominio web. |
 | `POST /api/auth/sign-in/social` | Google OAuth | `{ provider: "google", callbackURL }` | Proxy conserva la redirección a Google y proxifica el callback. |
 | `POST /api/auth/sign-out` | Logout | Sesión vigente | Proxy invalida sesión en Neon y retransmite `Set-Cookie`. |
@@ -398,7 +400,7 @@ Los endpoints adicionales de Better Auth dependen del handler/versionado de la l
 ### `GET /api/v1/users/me`
 
 - **Auth:** requerida, cualquier rol.
-- **Lógica:** sincroniza/upsert de la identidad Better Auth en `public.users`; copia el rol de la sesión, conserva `CREATOR` y normaliza cualquier otro valor a `BUYER`; genera `shareCode` determinista `KMP-` + primeros 5 caracteres del UUID sin guiones.
+- **Lógica:** sincroniza/upsert de la identidad en `public.users`; los usuarios nuevos empiezan como `CREATOR`, excepto si una invitación vigente coincide con su correo verificado. Aceptar la invitación registra `BUYER`, crea los contactos bidireccionales y refleja el rol en `neon_auth.user` si tiene columna `role`. Genera `shareCode` determinista `KMP-` + primeros 5 caracteres del UUID sin guiones.
 - **200:** `{ user: { id, name, email, role, createdAt }, session: { userId } }`.
 - **401:** sesión ausente.
 - **Efectos:** upsert de usuario de dominio.
@@ -407,7 +409,7 @@ Los endpoints adicionales de Better Auth dependen del handler/versionado de la l
 
 - **Auth:** requerida.
 - **Lógica:** garantiza el perfil y el código; devuelve contactos del usuario.
-- **200:** `{ shareCode: string, contacts: UserEntity[] }`.
+- **200:** `{ shareCode: string, contacts: UserEntity[], role: "CREATOR" | "BUYER" }`.
 - **404:** `User profile not found` si no existe la fila de dominio.
 
 ### `GET /api/v1/users/contacts`
@@ -424,6 +426,14 @@ Los endpoints adicionales de Better Auth dependen del handler/versionado de la l
 - **400:** código propio o body inválido.
 - **404:** código no encontrado.
 - **Efectos:** crea dos filas en `user_contacts` (`A→B` y `B→A`) si no existe la primera relación.
+
+### `POST /api/v1/users/buyer-invitations`
+
+- **Auth:** requerida, rol `CREATOR`.
+- **Body:** `{ email: string }`.
+- **Lógica:** guarda una invitación vigente por siete días y envía al correo una URL de registro. El rol `BUYER` se activa al autenticarse con ese correo verificado.
+- **Config:** `FRONTEND_URL` define la URL web; la entrega usa `BUYER_INVITATION_WEBHOOK_URL` o `MAGIC_LINK_WEBHOOK_URL`.
+- **503:** proveedor de entrega no configurado o no disponible.
 
 ## 3.6 Listas
 
