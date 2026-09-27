@@ -13,6 +13,7 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
   const router = useRouter();
   const [identityReady, setIdentityReady] = useState(false);
   const [identityError, setIdentityError] = useState('');
+  const [canCreate, setCanCreate] = useState(false);
 
   useEffect(() => {
     if (!isPending && !session) router.replace('/login');
@@ -24,8 +25,12 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
     setIdentityReady(false);
     setIdentityError('');
 
-    apiFetch('/users/me')
-      .then(() => { if (!cancelled) setIdentityReady(true); })
+    apiFetch<{ user: { role: 'CREATOR' | 'BUYER' } }>('/users/me')
+      .then(({ user }) => {
+        if (cancelled) return;
+        setCanCreate(user.role === 'CREATOR');
+        setIdentityReady(true);
+      })
       .catch((cause: unknown) => {
         if (cancelled) return;
         const error = cause as Error & { status?: number; body?: unknown };
@@ -48,5 +53,5 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
 
   if (!session) return null;
   if (!identityReady) return <div className="flex min-h-screen items-center justify-center bg-[#f7f8f4] text-sm text-[#64736c]">{identityError ? <p role="alert">No pudimos preparar tu perfil: {identityError}</p> : <p>Preparando tu espacio…</p>}</div>;
-  return <><div className="min-h-screen">{children}</div><FriendNetwork /><ListAssignmentQuick /><CategoryQuickCreate /></>;
+  return <><div className="min-h-screen">{children}</div><FriendNetwork /><ListAssignmentQuick />{canCreate ? <CategoryQuickCreate /> : null}</>;
 }

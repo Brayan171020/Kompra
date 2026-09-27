@@ -1,6 +1,6 @@
 # Kompra — Arquitectura funcional y mapa técnico
 
-> **Actualización del documento:** refleja el estado implementado después de la refactorización de seguridad, UX y desacoplamiento de módulos. Verificado contra el código actual de `apps/web` y `apps/api`.
+> **Actualización del documento:** 2026-09-27. Describe la implementación actual de `apps/web` y `apps/api`, incluida la sincronización de roles y los permisos visibles en la interfaz.
 
 > Documento generado a partir del código fuente real del repositorio. Cubre `apps/web` y `apps/api`, incluyendo rutas, componentes, controladores, servicios, DTOs, guards y entidades.
 >
@@ -67,7 +67,7 @@ campo `url` del JSON `{ url, redirect }`.
 
 El monorepo usa pnpm workspaces:
 
-- `apps/web`: Next.js 15, React 19, TypeScript estricto, App Router, Tailwind CSS 4 y Lucide React.
+- `apps/web`: Next.js 16, React 19.3, TypeScript estricto, App Router, Tailwind CSS 4 y Lucide React.
 - `apps/api`: NestJS 11, TypeScript, Express, TypeORM 0.3, class-validator, Swagger/OpenAPI, `@nestjs/throttler` y `helmet`.
 - Base de datos: PostgreSQL en Neon. TypeORM utiliza `DATABASE_URL`, SSL y las entidades del dominio. Better Auth usa un pool `pg`, dialecto Kysely y el schema `neon_auth`.
 - Calidad: Jest, Supertest, typecheck y builds coordinados desde el workspace.
@@ -116,7 +116,7 @@ navegador se mantiene mediante cookie segura reescrita por el proxy.
 
 ### Guards
 
-1. `AuthGuard` es global. Si la ruta no tiene `@Public()`, obtiene la sesión con `auth.api.getSession({ headers: fromNodeHeaders(request.headers) })`. Si no existe, responde `401`; si existe, coloca `request.user` y `request.session`.
+1. `AuthGuard` es global. Si la ruta no tiene `@Public()`, primero obtiene la sesión con `auth.api.getSession({ headers: fromNodeHeaders(request.headers) })`. Si no la obtiene, intenta validar el Bearer token contra `neon_auth.session` y `neon_auth.user` usando TypeORM. Si ambos caminos fallan responde `401`; si uno tiene éxito, coloca `request.user` y `request.session`.
 2. `RolesGuard` también es global. Lee `@Roles(...)`; sin metadata no restringe. Si el usuario no tiene uno de los roles requeridos responde `403`.
 3. `@CurrentUser()` expone el usuario autenticado al controlador.
 4. `@Public()` solo se usa en `GET /health` y `GET /categories`.
@@ -125,10 +125,20 @@ navegador se mantiene mediante cookie segura reescrita por el proxy.
 
 | Rol | Capacidades |
 |---|---|
-| `CREATOR` | Crear listas, añadir/eliminar ítems, asignar listas, finalizarlas, crear categorías. Consulta y modifica sus listas. |
-| `BUYER` | Consultar listas asignadas, cambiar estados de ítems de listas en las que participa, consultar/registrar su inventario y operar la red de contactos. |
+| `CREATOR` | Crear listas y categorías; añadir y eliminar ítems de sus listas; asignar listas a contactos; finalizar sus listas; consultar y actualizar el estado de sus ítems; registrar y consultar su inventario; operar la red de contactos; importar compras desde listas finalizadas en las que participa. |
+| `BUYER` | Consultar únicamente las listas asignadas; actualizar el estado de ítems de esas listas mientras sigan activas; registrar y consultar su inventario; operar la red de contactos; importar compras desde listas finalizadas en las que participa. No puede crear listas ni categorías, asignar listas, añadir/eliminar ítems ni finalizar listas. |
 
 No existe un rol `ADMIN`, `REPARTIDOR` ni un panel admin en el frontend. El seed llamado `seed-admin.ts` crea técnicamente un usuario `CREATOR`, no un rol administrativo distinto.
+
+### Asignación, sincronización y presentación de roles
+
+- El registro por correo inicia con `CREATOR` seleccionado, pero permite elegir `BUYER`. El inicio de sesión con Google no envía el selector de rol; Better Auth aplica el valor por defecto `BUYER` a usuarios OAuth nuevos.
+- Better Auth guarda el campo adicional `role` en `neon_auth.user`. `AuthGuard` obtiene ese rol de la sesión Better Auth o, para Bearer, de `neon_auth.user`. `GET /api/v1/users/me` copia el rol de la sesión al perfil `public.users`; solo conserva `CREATOR` como tal y normaliza cualquier otro valor a `BUYER`.
+- Por ello, elevar solamente `public.users.role` no cambia el rol usado por `RolesGuard`: hay que actualizar también `neon_auth.user.role`. Tras eso, `/users/me` sincroniza el perfil del dominio y el layout vuelve a leer el rol para renderizar las acciones.
+- En `/app`, las acciones para crear listas se ocultan a `BUYER` en escritorio y móvil. El botón flotante de categorías solo se monta para `CREATOR`. La API mantiene la autorización como control definitivo.
+- `ListAssignmentQuick` se monta para toda sesión y actualmente no se oculta por rol; la API rechaza el intento de un `BUYER` con `403`. `FriendNetwork` y el registro de inventario están disponibles para ambos roles.
+- `seed-admin.ts` usa `ADMIN_EMAIL` (por defecto `brayangt1710@gmail.com`) como cuenta principal y `CREATOR_EMAILS` (por defecto incluye `bjgamboa.19@est.ucab.edu.ve`) como lista adicional de cuentas existentes a elevar. `ADMIN_PASSWORD` solo se exige cuando hay que crear la cuenta principal. La elevación modifica `neon_auth.user` y sincroniza `public.users`; para correos adicionales, la fila de dominio debe existir. Los correos adicionales se elevan solo si ya existen en Neon Auth.
+- El repositorio define cómo se asignan y validan roles, pero no refleja el estado actual de una base Neon conectada; el rol de una cuenta real se confirma consultando esa base.
 
 ## 1.5 Persistencia y modelo de datos
 
@@ -231,11 +241,13 @@ Excepciones de negocio frecuentes: `BadRequestException` (`400`), `UnauthorizedE
 | Carga de listas | Efecto React | Solicita listas y categorías en paralelo | `GET /api/v1/lists`; `GET /api/v1/categories` | Sin parámetros | Listas visibles según rol; categorías ordenadas por nombre. |
 | Selección de lista | Botón/list item | Cambia `selectedId` y carga detalle | `GET /api/v1/lists/:id` | `id` UUID | `{ list, itemsByCategory }`. |
 | Despensa | Link | Abre historial | — | — | `/app/inventory` |
-| Nueva lista | Botón desktop/móvil | Abre modal | — | — | `CreateListDialog`. |
+| Nueva lista | Botón desktop/móvil | Abre modal solo a `CREATOR` | — | — | `CreateListDialog` se monta condicionalmente por rol; la API vuelve a validar el permiso. |
 | Cerrar sesión | Botón | Ejecuta Better Auth | `POST /api/v1/auth/sign-out` | Sesión | Redirige a `/login`. |
-| Mi red | Botón flotante global | Abre `FriendNetwork` | — | — | Modal de contactos. |
-| Asignar lista | Botón flotante global | Abre `ListAssignmentQuick` | — | — | Modal de asignación. |
-| Nueva categoría | Botón flotante global | Abre `CategoryQuickCreate` | — | — | Formulario rápido. |
+| Mi red | Botón flotante global | Abre `FriendNetwork` | — | — | Modal de contactos para ambos roles. |
+| Asignar lista | Botón flotante global | Abre `ListAssignmentQuick` | — | — | Modal de asignación; visible para ambos roles, aunque solo `CREATOR` puede completar la acción según la API. |
+| Nueva categoría | Botón flotante global | Abre `CategoryQuickCreate` solo a `CREATOR` | — | — | Formulario rápido. |
+
+El layout sincroniza la sesión con `GET /api/v1/users/me` antes de mostrar el espacio autenticado. La respuesta proporciona el rol de dominio y controla los accesos globales. `ListsBoard` vuelve a consultar `/users/me` al montarse para condicionar la creación de listas; por eso un cambio de rol persistido en Neon se refleja al volver a cargar la aplicación.
 
 ### Creación de lista
 
@@ -245,7 +257,7 @@ Excepciones de negocio frecuentes: `BadRequestException` (`400`), `UnauthorizedE
 | Crear lista | Form submit | Crea lista y recarga panel | `POST /api/v1/lists` | `{ title }` | `201`, lista `ACTIVE`; cierra modal y recarga. |
 | X | Botón/modal | Cierra | — | — | No modifica servidor. |
 
-Solo `CREATOR` puede completarla; un `BUYER` recibe `403`.
+Solo `CREATOR` puede completarla; a `BUYER` se le ocultan los accesos de escritorio y móvil, y la API también responde `403` si intenta llamar directamente al endpoint.
 
 ### Detalle y acciones de productos
 
@@ -288,11 +300,11 @@ Carga y vínculo muestran errores inline. El backend rechaza código inexistente
 
 ### `ListAssignmentQuick` — asignación rápida
 
-Al abrir realiza en paralelo `GET /api/v1/lists` y `GET /api/v1/users/contacts`; filtra listas activas. Dos selects eligen lista y contacto. “Asignar” invoca `PATCH /api/v1/lists/:id/assign` con `{ assignedToId }`. Requiere `CREATOR`, contacto válido y red previa para asignar BUYER. Mensajes de éxito/error son inline. X o click fuera cierran el modal.
+Al abrir realiza en paralelo `GET /api/v1/lists` y `GET /api/v1/users/contacts`; filtra listas activas. Dos selects eligen lista y contacto. “Asignar” invoca `PATCH /api/v1/lists/:id/assign` con `{ assignedToId }`. La API requiere `CREATOR`, contacto válido y red previa para asignar BUYER. El acceso flotante aún se muestra a ambos roles; a un `BUYER` la API le responde `403`. Mensajes de éxito/error son inline. X o click fuera cierran el modal.
 
 ### `CategoryQuickCreate` — categoría rápida
 
-El botón abre un formulario con nombre (mínimo 2). Submit: `POST /api/v1/categories` con `{ name }`. El backend asigna color `#7C9A5B` e icono `tag` si no se envían. Éxito cambia temporalmente el botón a “Creada” y cierra a los 900 ms; `409` por duplicado u otros errores se muestran inline. Requiere `CREATOR`.
+El layout solo monta el botón para el rol `CREATOR`. El botón abre un formulario con nombre (mínimo 2). Submit: `POST /api/v1/categories` con `{ name }`. El backend asigna color `#7C9A5B` e icono `tag` si no se envían. Éxito cambia temporalmente el botón a “Creada” y cierra a los 900 ms; `409` por duplicado u otros errores se muestran inline. La API también exige `CREATOR`.
 
 ## 2.6 `/app/inventory` — Inventario general / registro de compras
 
@@ -383,7 +395,7 @@ Los endpoints adicionales de Better Auth dependen del handler/versionado de la l
 ### `GET /api/v1/users/me`
 
 - **Auth:** requerida, cualquier rol.
-- **Lógica:** sincroniza/upsert de la identidad Better Auth en `users`; normaliza cualquier rol distinto de `CREATOR` a `BUYER`; genera `shareCode` determinista `KMP-` + primeros 5 caracteres del UUID sin guiones.
+- **Lógica:** sincroniza/upsert de la identidad Better Auth en `public.users`; copia el rol de la sesión, conserva `CREATOR` y normaliza cualquier otro valor a `BUYER`; genera `shareCode` determinista `KMP-` + primeros 5 caracteres del UUID sin guiones.
 - **200:** `{ user: { id, name, email, role, createdAt }, session: { userId } }`.
 - **401:** sesión ausente.
 - **Efectos:** upsert de usuario de dominio.
@@ -604,7 +616,7 @@ Una compra de inventario no tiene estados de pago, envío ni entrega; es un regi
 - TypeORM usa `synchronize: true` solo cuando `NODE_ENV === 'development'`; fuera de desarrollo queda desactivado. No hay archivos de migración en el repositorio.
 - El frontend dispone de estados de carga y error, pero no implementa polling, realtime, reconciliación offline ni caché persistente.
 - La documentación Swagger se publica en `/api/docs` mientras la API está activa y configura Bearer Auth con formato `session_token`.
-- Los seeds son opcionales: `seed-admin` crea/sincroniza un creador y `seed-market` agrega una lista y productos de ejemplo.
+- Los seeds son opcionales: `seed-admin` crea o sincroniza la cuenta principal y puede elevar cuentas existentes indicadas en `CREATOR_EMAILS`, manteniendo el rol en `neon_auth.user` y `public.users`; `seed-market` agrega una lista y productos de ejemplo.
 
 ## 4.5 Estado posterior a la refactorización
 
@@ -613,6 +625,7 @@ Una compra de inventario no tiene estados de pago, envío ni entrega; es un regi
 - El creador dispone de eliminación de ítems desde cada fila mediante `Trash2`; el endpoint `DELETE /api/v1/items/:id` permanece protegido en backend y la UI no lo muestra a compradores.
 - Se retiró el botón visual sin comportamiento “Más opciones”.
 - La identidad de dominio se sincroniza antes de montar las herramientas globales de colaboración, por lo que `shareCode` existe antes de abrir “Mi red”.
+- La creación de listas y categorías se presenta solo a `CREATOR`; las comprobaciones de rol permanecen también en los guards de la API. La asignación rápida sigue visible para `BUYER`, pero su endpoint es solo para creadores.
 - La API tiene límite base global de 60 solicitudes por minuto y límite de autenticación de 5 por minuto; ambos son limitadores en memoria y deben sustituirse por almacenamiento compartido si se escala horizontalmente.
 - El frontend utiliza cookies de sesión con `credentials: include`; el token Bearer sigue disponible como compatibilidad de API, pero no se guarda en `localStorage`.
 - El favicon nativo se encuentra en `apps/web/app/icon.svg` y está enlazado desde la metadata de `apps/web/app/layout.tsx`.
