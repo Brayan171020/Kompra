@@ -9,6 +9,7 @@ export class ShoppingListEntity {
   @Column({ type: 'enum', enum: ShoppingListStatus, default: ShoppingListStatus.ACTIVE }) status: ShoppingListStatus;
   @Column() creatorId: string;
   @Column({ type: 'varchar', nullable: true }) assignedToId: string | null;
+  @Column({ default: false }) copyToAssigneeInventory: boolean;
   @CreateDateColumn() createdAt: Date;
   @Column({ type: 'timestamptz', nullable: true }) finishedAt: Date | null;
 }

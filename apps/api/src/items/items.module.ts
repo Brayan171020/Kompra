@@ -4,12 +4,13 @@ import { CategoryEntity } from '../entities/category.entity.js';
 import { ListItemEntity } from '../entities/list-item.entity.js';
 import { ShoppingListEntity } from '../entities/shopping-list.entity.js';
 import { InventoryPurchaseEntity } from '../entities/inventory-purchase.entity.js';
+import { ProductEntity } from '../entities/product.entity.js';
 import { ItemsController } from './items.controller.js';
 import { ItemsService } from './items.service.js';
 import { ListsModule } from '../lists/lists.module.js';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ListItemEntity, CategoryEntity, ShoppingListEntity, InventoryPurchaseEntity]), ListsModule],
+  imports: [TypeOrmModule.forFeature([ListItemEntity, CategoryEntity, ShoppingListEntity, InventoryPurchaseEntity, ProductEntity]), ListsModule],
   controllers: [ItemsController],
   providers: [ItemsService],
 })

@@ -1,9 +1,10 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, ILike, In, Repository } from 'typeorm';
 import { CategoryEntity } from '../entities/category.entity.js';
 import { ListItemEntity, ListItemStatus } from '../entities/list-item.entity.js';
 import { ListTemplateEntity } from '../entities/list-template.entity.js';
+import { ProductEntity } from '../entities/product.entity.js';
 import { ShoppingListEntity, ShoppingListStatus } from '../entities/shopping-list.entity.js';
 import { TemplateItemEntity } from '../entities/template-item.entity.js';
 import { UserRole } from '../entities/user.entity.js';
@@ -31,6 +32,7 @@ export class TemplatesService {
       const templateRepository = manager.getRepository(ListTemplateEntity);
       const template = await templateRepository.save(templateRepository.create({ title: dto.title.trim(), creatorId: actor.id }));
       if (dto.items?.length) await manager.getRepository(TemplateItemEntity).save(dto.items.map((item) => manager.getRepository(TemplateItemEntity).create({ ...item, templateId: template.id, note: item.note ?? null })));
+      await this.saveProducts(dto.items ?? [], actor.id, manager.getRepository(ProductEntity));
       return templateRepository.findOneOrFail({ where: { id: template.id }, relations: { items: true } });
     });
   }
@@ -71,6 +73,7 @@ export class TemplatesService {
         const itemRepository = manager.getRepository(TemplateItemEntity);
         await itemRepository.delete({ templateId: id });
         if (dto.items.length) await itemRepository.save(dto.items.map((item) => itemRepository.create({ ...item, templateId: id, note: item.note ?? null })));
+        await this.saveProducts(dto.items, actor.id, manager.getRepository(ProductEntity));
       }
       return templateRepository.findOneOrFail({ where: { id }, relations: { items: true } });
     });
@@ -115,5 +118,13 @@ export class TemplatesService {
     if (!ids.length) return;
     const found = await this.categories.find({ where: { id: In(ids) }, select: { id: true } });
     if (found.length !== ids.length) throw new NotFoundException('One or more categories were not found');
+  }
+
+  private async saveProducts(items: Array<{ categoryId: string; name: string; quantityType: string }>, creatorId: string, products: Repository<ProductEntity>): Promise<void> {
+    for (const item of items) {
+      const name = item.name.trim();
+      if (await products.existsBy({ creatorId, categoryId: item.categoryId, name: ILike(name) })) continue;
+      await products.save(products.create({ creatorId, categoryId: item.categoryId, name, quantityType: item.quantityType as ProductEntity['quantityType'] }));
+    }
   }
 }

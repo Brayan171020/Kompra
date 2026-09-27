@@ -679,3 +679,10 @@ El dashboard `/app/inventory` presenta las métricas de gasto, ítems, promedio,
 - GET /api/v1/lists incluye las listas creadas por el usuario CREATOR y también las que le fueron asignadas; los compradores siguen viendo sus listas asignadas.
 - La UI distingue al dueño de la lista de un usuario CREATOR que participa como asignado. El asignado puede resolver ítems y registrar costos, mientras que editar productos, administrar plantillas desde esa lista y finalizarla sigue reservado al dueño.
 - Las cantidades de productos UNIT deben ser números enteros positivos, también en compras parciales. Las compras de inventario en und y paquete siguen la misma regla. Peso y litros aceptan cantidades fraccionarias.
+
+
+## 4.8 Catálogo de productos y consentimiento al compartir
+
+- Los creadores tienen un catálogo privado de productos (GET/POST /api/v1/products) con nombre, categoría y tipo de cantidad. El catálogo existente se inicializa con productos encontrados en listas anteriores.
+- Al añadir un producto nuevo a una lista, primero se guarda en el catálogo; al armar otras listas se puede elegir entre crear un producto o seleccionar uno ya guardado y establecer la cantidad objetivo.
+- Al asignar una lista, el creador puede activar copyToAssigneeInventory. Desactivado por defecto, las compras se guardan en el inventario del creador; activado, se sincronizan también al inventario de la persona asignada. La preferencia aplica a la sincronización automática y a la importación idempotente de listas finalizadas.

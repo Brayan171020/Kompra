@@ -1,8 +1,9 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, ILike, Repository } from 'typeorm';
 import { CategoryEntity } from '../entities/category.entity.js';
 import { InventoryPurchaseEntity } from '../entities/inventory-purchase.entity.js';
+import { ProductEntity } from '../entities/product.entity.js';
 import { ListItemEntity, ListItemStatus } from '../entities/list-item.entity.js';
 import { ShoppingListEntity, ShoppingListStatus } from '../entities/shopping-list.entity.js';
 import { CreateItemDto } from './dto/create-item.dto.js';
@@ -14,6 +15,7 @@ export class ItemsService {
   constructor(
     @InjectRepository(ListItemEntity) private readonly items: Repository<ListItemEntity>,
     @InjectRepository(CategoryEntity) private readonly categories: Repository<CategoryEntity>,
+    @InjectRepository(ProductEntity) private readonly products: Repository<ProductEntity>,
     @InjectRepository(ShoppingListEntity) private readonly lists: Repository<ShoppingListEntity>,
     private readonly dataSource: DataSource,
     private readonly listsService: ListsService,
@@ -24,7 +26,11 @@ export class ItemsService {
     this.assertActive(list);
     this.assertQuantity(dto.quantityType, dto.targetQuantity);
     if (!(await this.categories.existsBy({ id: dto.categoryId }))) throw new NotFoundException('Category not found');
-    return this.items.save(this.items.create({ ...dto, listId, purchasedQuantity: 0, status: ListItemStatus.PENDING, note: dto.note ?? null }));
+    const name = dto.name.trim();
+    if (!(await this.products.existsBy({ creatorId: list.creatorId, categoryId: dto.categoryId, name: ILike(name) }))) {
+      await this.products.save(this.products.create({ creatorId: list.creatorId, categoryId: dto.categoryId, name, quantityType: dto.quantityType }));
+    }
+    return this.items.save(this.items.create({ ...dto, name, listId, purchasedQuantity: 0, status: ListItemStatus.PENDING, note: dto.note ?? null }));
   }
 
   async updateStatus(id: string, dto: UpdateItemStatusDto, actor: ListActor): Promise<ListItemEntity> {
@@ -66,7 +72,7 @@ export class ItemsService {
       if (nextStatus === ListItemStatus.PENDING) {
         await purchaseRepository.delete({ sourceItemId: item.id });
       } else {
-        const owners = [...new Set([list.creatorId, list.assignedToId].filter((id): id is string => Boolean(id)))];
+        const owners = [...new Set([list.creatorId, list.copyToAssigneeInventory ? list.assignedToId : null].filter((id): id is string => Boolean(id)))];
         for (const ownerId of owners) {
           let purchase = await purchaseRepository.findOne({ where: { sourceItemId: item.id, creatorId: ownerId } });
           if (!purchase) purchase = purchaseRepository.create({ sourceItemId: item.id, sourceListId: list.id, creatorId: ownerId });

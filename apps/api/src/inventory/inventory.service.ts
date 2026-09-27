@@ -1,9 +1,10 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, In, Repository } from 'typeorm';
+import { DataSource, ILike, In, Repository } from 'typeorm';
 import { CategoryEntity } from '../entities/category.entity.js';
 import { InventoryPurchaseEntity } from '../entities/inventory-purchase.entity.js';
-import { ListItemEntity, ListItemStatus } from '../entities/list-item.entity.js';
+import { ProductEntity } from '../entities/product.entity.js';
+import { ListItemEntity, ListItemStatus, QuantityType } from '../entities/list-item.entity.js';
 import { ShoppingListEntity, ShoppingListStatus } from '../entities/shopping-list.entity.js';
 import { CreateInventoryPurchaseDto } from './dto/create-inventory-purchase.dto.js';
 import { InventoryQueryDto } from './dto/inventory-query.dto.js';
@@ -14,6 +15,7 @@ export class InventoryService {
   constructor(
     @InjectRepository(InventoryPurchaseEntity) private readonly purchases: Repository<InventoryPurchaseEntity>,
     @InjectRepository(CategoryEntity) private readonly categories: Repository<CategoryEntity>,
+    @InjectRepository(ProductEntity) private readonly productsCatalog: Repository<ProductEntity>,
     @InjectRepository(ShoppingListEntity) private readonly lists: Repository<ShoppingListEntity>,
     @InjectRepository(ListItemEntity) private readonly items: Repository<ListItemEntity>,
     private readonly dataSource: DataSource,
@@ -24,8 +26,15 @@ export class InventoryService {
       throw new BadRequestException('Unit and package quantities must be whole numbers');
     }
     await this.assertCategory(dto.categoryId);
+    const productName = dto.productName.trim();
+    if (!(await this.productsCatalog.existsBy({ creatorId: actor.id, categoryId: dto.categoryId, name: ILike(productName) }))) {
+      await this.productsCatalog.save(this.productsCatalog.create({
+        creatorId: actor.id, categoryId: dto.categoryId, name: productName,
+        quantityType: dto.unit === 'kg' || dto.unit === 'g' || dto.unit === 'litro' ? QuantityType.WEIGHT : QuantityType.UNIT,
+      }));
+    }
     return this.purchases.save(this.purchases.create({
-      productName: dto.productName.trim(), categoryId: dto.categoryId, quantity: dto.quantity, unit: dto.unit,
+      productName, categoryId: dto.categoryId, quantity: dto.quantity, unit: dto.unit,
       purchaseDate: new Date(dto.purchaseDate), description: dto.description?.trim() || null, cost: dto.cost ?? null,
       sourceListId: null, sourceItemId: null, creatorId: actor.id,
     }));
@@ -107,7 +116,7 @@ export class InventoryService {
       const purchases: InventoryPurchaseEntity[] = [];
       let skipped = 0;
       for (const item of completedItems) {
-        const owners = [...new Set([list.creatorId, list.assignedToId].filter((id): id is string => Boolean(id)))];
+        const owners = [...new Set([list.creatorId, list.copyToAssigneeInventory ? list.assignedToId : null].filter((id): id is string => Boolean(id)))];
         let itemImported = false;
         for (const ownerId of owners) {
           const existing = await purchaseRepository.findOne({ where: { sourceItemId: item.id, creatorId: ownerId } });

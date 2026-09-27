@@ -36,7 +36,7 @@ export class ListsController {
   @Patch(':id/assign')
   @Version('1')
   @Roles(UserRole.CREATOR)
-  @ApiOperation({ summary: 'Assign or reassign a BUYER' })
+  @ApiOperation({ summary: 'Assign or reassign a user and optionally copy purchases to their inventory' })
   assign(@Param('id') id: string, @Body() dto: AssignListDto, @CurrentUser() actor: ListActor) { return this.listsService.assign(id, dto, actor); }
 
   @Patch(':id/finish')

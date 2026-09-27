@@ -63,6 +63,7 @@ export class ListsService {
     const list = await this.getAuthorizedList(id, actor, true);
     await this.assertAssignableUser(dto.assignedToId, actor.id);
     list.assignedToId = dto.assignedToId;
+    list.copyToAssigneeInventory = dto.copyToAssigneeInventory ?? false;
     return this.lists.save(list);
   }
 
