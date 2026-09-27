@@ -20,9 +20,9 @@ export class ProductsAndAssignmentInventoryChoice1780000002000 implements Migrat
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_products_creator" ON "products" ("creatorId")`);
     await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "UQ_products_creator_category_name" ON "products" ("creatorId", "categoryId", "name")`);
     await queryRunner.query(`INSERT INTO "products" ("creatorId", "categoryId", "name", "quantityType")
-      SELECT DISTINCT ON (list."creatorId", item."categoryId", lower(item."name")) list."creatorId", item."categoryId", item."name", item."quantityType"::text::"products_quantityType_enum"
-      FROM "list_items" item INNER JOIN "shopping_lists" list ON list."id" = item."listId"
-      ORDER BY list."creatorId", item."categoryId", lower(item."name"), item."createdAt" DESC
+      SELECT DISTINCT ON (list."creatorId", item."categoryId"::uuid, lower(item."name")) list."creatorId", item."categoryId"::uuid, item."name", item."quantityType"::text::"products_quantityType_enum"
+      FROM "list_items" item INNER JOIN "shopping_lists" list ON list."id" = item."listId"::uuid
+      ORDER BY list."creatorId", item."categoryId"::uuid, lower(item."name"), item."createdAt" DESC
       ON CONFLICT DO NOTHING`);
     await queryRunner.query(`INSERT INTO "products" ("creatorId", "categoryId", "name", "quantityType")
       SELECT DISTINCT ON (template."creatorId", item."categoryId", lower(item."name")) template."creatorId", item."categoryId", item."name", item."quantityType"::text::"products_quantityType_enum"
@@ -30,10 +30,10 @@ export class ProductsAndAssignmentInventoryChoice1780000002000 implements Migrat
       ORDER BY template."creatorId", item."categoryId", lower(item."name"), template."updatedAt" DESC
       ON CONFLICT DO NOTHING`);
     await queryRunner.query(`INSERT INTO "products" ("creatorId", "categoryId", "name", "quantityType")
-      SELECT DISTINCT ON (purchase."creatorId", purchase."categoryId", lower(purchase."productName")) purchase."creatorId", purchase."categoryId", purchase."productName",
+      SELECT DISTINCT ON (purchase."creatorId", purchase."categoryId"::uuid, lower(purchase."productName")) purchase."creatorId", purchase."categoryId"::uuid, purchase."productName",
         CASE WHEN purchase."unit" IN ('kg', 'g', 'litro') THEN 'WEIGHT'::"products_quantityType_enum" ELSE 'UNIT'::"products_quantityType_enum" END
       FROM "inventory_purchases" purchase
-      ORDER BY purchase."creatorId", purchase."categoryId", lower(purchase."productName"), purchase."purchaseDate" DESC
+      ORDER BY purchase."creatorId", purchase."categoryId"::uuid, lower(purchase."productName"), purchase."purchaseDate" DESC
       ON CONFLICT DO NOTHING`);
   }
 
