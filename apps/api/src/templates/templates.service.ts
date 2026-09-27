@@ -105,7 +105,12 @@ export class TemplatesService {
     if (actor.role !== UserRole.CREATOR) throw new ForbiddenException('Only creators can manage list templates');
   }
 
-  private async assertCategories(items: Array<{ categoryId: string }>): Promise<void> {
+  private async assertCategories(items: Array<{ categoryId: string; quantityType?: string; targetQuantity?: number | string }>): Promise<void> {
+    for (const item of items) {
+      if (item.quantityType === 'UNIT' && item.targetQuantity !== undefined && !Number.isInteger(Number(item.targetQuantity))) {
+        throw new BadRequestException('Unit quantities must be whole numbers');
+      }
+    }
     const ids = [...new Set(items.map((item) => item.categoryId))];
     if (!ids.length) return;
     const found = await this.categories.find({ where: { id: In(ids) }, select: { id: true } });

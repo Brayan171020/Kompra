@@ -672,3 +672,10 @@ Una compra de inventario no tiene estados de pago, envío ni entrega; es un regi
 - `averageTicketCost`: costo medio por registro de adquisición del mes; las compras sin costo cuentan como cero.
 
 El dashboard `/app/inventory` presenta las métricas de gasto, ítems, promedio, volumen, gasto por categoría y productos de mayor inversión. Los datos se calculan por propietario del inventario y ventana mensual UTC semiabierta para evitar incluir el primer instante del mes siguiente.
+
+
+## 4.7 Asignación de listas y cantidades enteras
+
+- GET /api/v1/lists incluye las listas creadas por el usuario CREATOR y también las que le fueron asignadas; los compradores siguen viendo sus listas asignadas.
+- La UI distingue al dueño de la lista de un usuario CREATOR que participa como asignado. El asignado puede resolver ítems y registrar costos, mientras que editar productos, administrar plantillas desde esa lista y finalizarla sigue reservado al dueño.
+- Las cantidades de productos UNIT deben ser números enteros positivos, también en compras parciales. Las compras de inventario en und y paquete siguen la misma regla. Peso y litros aceptan cantidades fraccionarias.

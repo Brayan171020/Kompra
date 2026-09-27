@@ -27,7 +27,9 @@ export class ListsService {
   }
 
   async findMine(actor: ListActor): Promise<Array<ShoppingListEntity & { totalItems: number; completedItems: number }>> {
-    const where = actor.role === UserRole.CREATOR ? { creatorId: actor.id } : { assignedToId: actor.id };
+    const where = actor.role === UserRole.CREATOR
+      ? [{ creatorId: actor.id }, { assignedToId: actor.id }]
+      : { assignedToId: actor.id };
     const lists = await this.lists.find({ where, order: { createdAt: 'DESC' } });
     if (!lists.length) return [];
     const counts = await this.items.createQueryBuilder('item')

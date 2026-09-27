@@ -22,6 +22,7 @@ export class ItemsService {
   async create(listId: string, dto: CreateItemDto, actor: ListActor): Promise<ListItemEntity> {
     const list = await this.listsService.getAuthorizedList(listId, actor, true);
     this.assertActive(list);
+    this.assertQuantity(dto.quantityType, dto.targetQuantity);
     if (!(await this.categories.existsBy({ id: dto.categoryId }))) throw new NotFoundException('Category not found');
     return this.items.save(this.items.create({ ...dto, listId, purchasedQuantity: 0, status: ListItemStatus.PENDING, note: dto.note ?? null }));
   }
@@ -45,6 +46,9 @@ export class ItemsService {
         this.assertActive(list);
       }
       const nextStatus = dto.status ?? item.status;
+      if (dto.purchasedQuantity !== undefined && nextStatus === ListItemStatus.PARTIALLY_COMPLETED) {
+        this.assertQuantity(item.quantityType, dto.purchasedQuantity);
+      }
       if (dto.status === ListItemStatus.PARTIALLY_COMPLETED) {
         const nextQuantity = dto.purchasedQuantity ?? Number(item.purchasedQuantity);
         const nextNote = dto.note ?? item.note;
@@ -89,4 +93,9 @@ export class ItemsService {
   }
 
   private assertActive(list: ShoppingListEntity): void { if (list.status !== ShoppingListStatus.ACTIVE) throw new BadRequestException('Finished lists cannot be modified'); }
+  private assertQuantity(quantityType: string, quantity: number): void {
+    if (quantityType === 'UNIT' && !Number.isInteger(Number(quantity))) {
+      throw new BadRequestException('Unit quantities must be whole numbers');
+    }
+  }
 }

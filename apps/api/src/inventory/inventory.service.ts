@@ -20,6 +20,9 @@ export class InventoryService {
   ) {}
 
   async create(dto: CreateInventoryPurchaseDto, actor: ListActor): Promise<InventoryPurchaseEntity> {
+    if ((dto.unit === 'und' || dto.unit === 'paquete') && !Number.isInteger(Number(dto.quantity))) {
+      throw new BadRequestException('Unit and package quantities must be whole numbers');
+    }
     await this.assertCategory(dto.categoryId);
     return this.purchases.save(this.purchases.create({
       productName: dto.productName.trim(), categoryId: dto.categoryId, quantity: dto.quantity, unit: dto.unit,
