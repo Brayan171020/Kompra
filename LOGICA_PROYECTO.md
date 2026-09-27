@@ -148,8 +148,10 @@ No existe un rol `ADMIN`, `REPARTIDOR` ni un panel admin en el frontend. El seed
 | `UserContactEntity` / `user_contacts` | `id`, `userId`, `contactId`, `createdAt` | Índice único por pareja; el servicio crea ambas direcciones. |
 | `CategoryEntity` / `categories` | `id`, `name`, `color`, `icon`, `creatorId` | `creatorId=null` para categorías iniciales. |
 | `ShoppingListEntity` / `shopping_lists` | `id`, `title`, `status`, `creatorId`, `assignedToId`, `createdAt`, `finishedAt` | Lista creada por un creator y opcionalmente asignada. |
-| `ListItemEntity` / `list_items` | `id`, `listId`, `categoryId`, `name`, `quantityType`, `targetQuantity`, `status`, `purchasedQuantity`, `note`, `createdAt` | Producto perteneciente a una lista y categoría. |
-| `InventoryPurchaseEntity` / `inventory_purchases` | `id`, `productName`, `categoryId`, `quantity`, `unit`, `purchaseDate`, `description`, `cost`, `sourceListId`, `sourceItemId`, `creatorId`, `createdAt` | `sourceItemId` único protege importaciones repetidas. |
+| `ListItemEntity` / `list_items` | `id`, `listId`, `categoryId`, `name`, `quantityType`, `targetQuantity`, `status`, `purchasedQuantity`, `note`, `cost`, `createdAt` | `cost` opcional registra el costo total pagado por la cantidad adquirida. |
+| `ListTemplateEntity` / `list_templates` | `id`, `title`, `creatorId`, `createdAt`, `updatedAt` | Plantilla privada del creador; al eliminarla se eliminan sus ítems. |
+| `TemplateItemEntity` / `template_items` | `id`, `templateId`, `categoryId`, `name`, `quantityType`, `targetQuantity`, `note` | Ítem reutilizable; cantidad mínima `0.001`. |
+| `InventoryPurchaseEntity` / `inventory_purchases` | `id`, `productName`, `categoryId`, `quantity`, `unit`, `purchaseDate`, `description`, `cost`, `sourceListId`, `sourceItemId`, `creatorId`, `createdAt` | Índice único parcial por `sourceItemId` y propietario evita duplicados y permite copia al creador y comprador. |
 
 Enums:
 
@@ -263,11 +265,12 @@ Solo `CREATOR` puede completarla; a `BUYER` se le ocultan los accesos de escrito
 
 | Elemento | Tipo | Acción | Endpoint | Payload | Respuesta / estado |
 |---|---|---|---|---|---|
-| Checkbox / nombre de ítem | Botón | Marca compra completa | `PATCH /api/v1/items/:id/status` | `{ status: "COMPLETED" }` | El backend fija `purchasedQuantity=targetQuantity`; se actualiza detalle/progreso. |
+| Checkbox / nombre de ítem | Botón | Marca compra completa o la revierte a pendiente | `PATCH /api/v1/items/:id/status` | `{ status: "COMPLETED", cost? }` / `{ status: "PENDING" }` | La compra sincroniza inventarios de ambos participantes; desmarcarla elimina las filas originadas por el ítem. |
 | Acción parcial | Botón | Abre modal de cantidad incompleta | — | — | `PartialDialog`; no llama hasta guardar. |
 | Cantidad conseguida | Input number | Captura cantidad parcial | — | — | Mínimo `.001`, menor que el objetivo. |
 | Nota aclaratoria | Textarea | Explica faltante | — | — | Obligatoria en la UI y backend para parcial. |
-| Guardar completado parcial | Form submit | Persiste parcial | `PATCH /api/v1/items/:id/status` | `{ status: "PARTIALLY_COMPLETED", purchasedQuantity, note }` | Actualiza el ítem; `purchasedQuantity < targetQuantity`. |
+| Guardar completado parcial | Form submit | Persiste parcial y costo opcional | `PATCH /api/v1/items/:id/status` | `{ status: "PARTIALLY_COMPLETED", purchasedQuantity, note, cost? }` | Actualiza el ítem y sincroniza los inventarios; `purchasedQuantity < targetQuantity`. |
+| Editar costo | Botón `Pencil` en ítem adquirido | Corrige costo total después de comprar | `PATCH /api/v1/items/:id/status` | `{ cost }` | Actualiza el ítem y sus compras enlazadas, incluso si la lista ya se finalizó. |
 | Ocultar completados | Switch-like button | Alterna `hideCompleted` | — | — | Filtrado local; no API. |
 | Añadir producto | Botón | Abre `AddItemDialog` | — | — | Deshabilitado para lista `FINISHED`. |
 | Producto | Input | Captura nombre | — | — | Requerido; backend `1..120`. |
@@ -276,7 +279,7 @@ Solo `CREATOR` puede completarla; a `BUYER` se le ocultan los accesos de escrito
 | Cantidad objetivo | Input number | Captura `targetQuantity` | — | — | Positiva, hasta 3 decimales. |
 | Guardar producto | Form submit | Añade producto y recarga detalle | `POST /api/v1/lists/:listId/items` | `{ name, categoryId, quantityType, targetQuantity }` | `201`, ítem `PENDING`; cierra modal. |
 | Papelera | Botón `Trash2` | Solicita confirmación y elimina el ítem; solo se renderiza para `CREATOR` | `DELETE /api/v1/items/:id` | Sin body | `204`; recarga listas y detalle. Se bloquea durante la petición. |
-| Finalizar lista | Botón fijo condicional | Solo aparece si lista activa, total > 0 y todos completos | `PATCH /api/v1/lists/:id/finish` | Sin body | Lista pasa a `FINISHED`, se muestra banner de transferencia. |
+| Finalizar lista | Botón fijo condicional | Solo aparece si lista activa, total > 0 y todos completos | `PATCH /api/v1/lists/:id/finish` | Sin body | Lista pasa a `FINISHED`; las compras ya se sincronizaron al marcar cada ítem. |
 | Transferir productos | Botón del banner | Importa completados/parciales | `POST /api/v1/inventory/import-from-list/:listId` | Sin body | Devuelve `imported`, `skipped`, `purchases`; limpia banner. |
 | Ahora no | Botón | Descarta banner | — | — | No importa ni modifica lista. |
 
@@ -482,12 +485,12 @@ Los endpoints adicionales de Better Auth dependen del handler/versionado de la l
 ### `PATCH /api/v1/items/:id/status`
 
 - **Auth:** requerida, creador o comprador asignado a la lista.
-- **Body `UpdateItemStatusDto`:** `{ status: "PENDING"|"PARTIALLY_COMPLETED"|"COMPLETED", purchasedQuantity?: number >= .001, note?: string(1..500) }`.
+- **Body `UpdateItemStatusDto`:** `{ status?: "PENDING"|"PARTIALLY_COMPLETED"|"COMPLETED", purchasedQuantity?: number >= .001, note?: string(1..500), cost?: number >= 0 }`; `status` se omite para actualizar solo el costo de una compra.
 - **200:** ítem actualizado.
 - **400:** parcial sin cantidad, cantidad parcial mayor/igual al objetivo, nota parcial vacía, DTO inválido o lista finalizada.
 - **401/403:** sesión o participación inválida.
 - **404:** ítem/lista inexistente.
-- **Transacción:** bloqueo de escritura del ítem y lectura de la lista; `COMPLETED` fija cantidad objetivo, `PENDING` fija 0 y parcial conserva la cantidad recibida.
+- **Transacción:** bloqueo de escritura del ítem y lectura de la lista; `COMPLETED` fija cantidad objetivo, `PENDING` fija 0 y parcial conserva la cantidad recibida. Al adquirir sincroniza ambas despensas; al volver a `PENDING` borra las compras por `sourceItemId`. Una corrección de costo se admite en listas finalizadas.
 
 ### `DELETE /api/v1/items/:id`
 
@@ -521,7 +524,7 @@ Los endpoints adicionales de Better Auth dependen del handler/versionado de la l
 ### `GET /api/v1/inventory/summary`
 
 - **Auth:** requerida.
-- **200:** `{ month:"YYYY-MM", totalItems, totalQuantity, totalCost, byCategory:[{ categoryId, categoryName, color, count, percentage }] }`.
+- **200:** mantiene `{ month, totalItems, totalQuantity, totalCost, byCategory }` y agrega `monthlyTotalCost`, `monthlyTotalItems`, `volumeBreakdown`, `costByCategory`, `topExpensiveProducts` y `averageTicketCost`.
 - **Lógica:** solo compras del mes UTC actual del usuario; agrupa por categoría y suma cantidades/costos.
 - **Efectos:** lectura.
 
@@ -533,8 +536,8 @@ Los endpoints adicionales de Better Auth dependen del handler/versionado de la l
 - **400:** lista no finalizada.
 - **403:** no participa en la lista.
 - **404:** lista inexistente.
-- **Transacción:** selecciona ítems `COMPLETED` o `PARTIALLY_COMPLETED`; por cada `sourceItemId` existente incrementa `skipped`; los nuevos usan cantidad comprada, unidad `kg` para `WEIGHT` o `und` para `UNIT`, fecha de finalización/creación, nota y referencias de origen.
-- **Idempotencia:** índice único `sourceItemId` y comprobación previa impiden duplicar importaciones.
+- **Transacción:** selecciona ítems `COMPLETED` o `PARTIALLY_COMPLETED`; por participante crea solo las filas faltantes usando la cantidad, costo y nota del ítem. Las filas existentes se mantienen idempotentes.
+- **Idempotencia:** índice único parcial `(sourceItemId, creatorId)` permite una compra para el creator y otra para el buyer asignado sin repetir registros en cada inventario.
 
 # 4. Diagrama de Flujo de Datos y Estados
 
@@ -613,14 +616,14 @@ Una compra de inventario no tiene estados de pago, envío ni entrega; es un regi
 
 ## 4.4 Observaciones de implementación
 
-- TypeORM usa `synchronize: true` solo cuando `NODE_ENV === 'development'`; fuera de desarrollo queda desactivado. No hay archivos de migración en el repositorio.
+- TypeORM usa `synchronize: true` solo cuando `NODE_ENV === 'development'`; fuera de desarrollo queda desactivado. Las ampliaciones de esquema se aplican con migraciones TypeORM al iniciar la API.
 - El frontend dispone de estados de carga y error, pero no implementa polling, realtime, reconciliación offline ni caché persistente.
 - La documentación Swagger se publica en `/api/docs` mientras la API está activa y configura Bearer Auth con formato `session_token`.
 - Los seeds son opcionales: `seed-admin` crea o sincroniza la cuenta principal y puede elevar cuentas existentes indicadas en `CREATOR_EMAILS`, manteniendo el rol en `neon_auth.user` y `public.users`; `seed-market` agrega una lista y productos de ejemplo.
 
 ## 4.5 Estado posterior a la refactorización
 
-- El módulo de listas es autónomo: finalizar una lista no ejecuta automáticamente ninguna escritura en inventario; la transferencia se inicia únicamente desde el banner opcional de la interfaz.
+- El módulo de listas sincroniza automáticamente los ítems adquiridos al inventario de sus participantes; el banner de transferencia se conserva como mecanismo idempotente de recuperación para listas antiguas.
 - El módulo de inventario ya no se presenta como una despensa exclusiva de supermercado. Sus categorías iniciales y textos de UI cubren alimentos, hogar, herramientas, ferretería, repuestos e insumos de trabajo.
 - El creador dispone de eliminación de ítems desde cada fila mediante `Trash2`; el endpoint `DELETE /api/v1/items/:id` permanece protegido en backend y la UI no lo muestra a compradores.
 - Se retiró el botón visual sin comportamiento “Más opciones”.
@@ -629,3 +632,33 @@ Una compra de inventario no tiene estados de pago, envío ni entrega; es un regi
 - La API tiene límite base global de 60 solicitudes por minuto y límite de autenticación de 5 por minuto; ambos son limitadores en memoria y deben sustituirse por almacenamiento compartido si se escala horizontalmente.
 - El frontend utiliza cookies de sesión con `credentials: include`; el token Bearer sigue disponible como compatibilidad de API, pero no se guarda en `localStorage`.
 - El favicon nativo se encuentra en `apps/web/app/icon.svg` y está enlazado desde la metadata de `apps/web/app/layout.tsx`.
+
+## 4.6 Plantillas, compras desde listas y analítica
+
+### Plantillas de listas
+
+- `POST /api/v1/templates` crea una plantilla y sus ítems opcionales. `POST /api/v1/templates/from-list/:listId` clona una lista `ACTIVE` propia.
+- `GET /api/v1/templates` lista plantillas del creator actual; `GET /api/v1/templates/:id` devuelve el detalle. `PATCH /api/v1/templates/:id` permite cambiar título y/o reemplazar ítems; `DELETE /api/v1/templates/:id` elimina la plantilla.
+- `POST /api/v1/templates/:id/instantiate` crea una nueva lista `ACTIVE` e ítems pendientes. Las modificaciones posteriores a la lista no afectan a la plantilla.
+- Todos los endpoints de plantillas requieren `CREATOR` y comprueban propiedad. Los productos deben referenciar categorías existentes.
+- En `/app`, los creadores pueden crear/editar/eliminar plantillas, guardar la lista activa como plantilla y usar una plantilla para abrir una lista modificable. Los compradores no ven acciones de creación de listas o plantillas.
+
+### Sincronización de compra e inventario
+
+- `PATCH /api/v1/items/:id/status` acepta `status?`, `purchasedQuantity?`, `note?` y `cost?`. `cost` es el monto total pagado por la cantidad adquirida, decimal no negativo con hasta dos decimales. Un payload con solo `cost` corrige el costo de un ítem ya adquirido.
+- Cuando el ítem queda `COMPLETED` o `PARTIALLY_COMPLETED`, una transacción actualiza el ítem y crea/actualiza una compra en `inventory_purchases` para `shopping_lists.creatorId` y, cuando existe, `assignedToId`. La columna histórica `inventory_purchases.creatorId` representa el propietario de cada inventario.
+- Al regresar a `PENDING`, en la misma transacción se reinicia `purchasedQuantity`, se limpia el costo del ítem y se eliminan todas sus compras enlazadas por `sourceItemId`.
+- El índice único parcial `(sourceItemId, creatorId)` permite una fila por participante y hace idempotentes tanto la sincronización automática como `POST /api/v1/inventory/import-from-list/:listId`. El importador también recupera registros faltantes de listas finalizadas.
+- Los ítems se ordenan por categoría y nombre en el detalle de lista. Marcar una compra permite registrar el costo; los ítems adquiridos exponen edición posterior del costo y se pueden desmarcar para retirar su compra del inventario.
+
+### Resumen mensual de inventario
+
+`GET /api/v1/inventory/summary` mantiene `month`, `totalItems`, `totalQuantity`, `totalCost` y `byCategory` para compatibilidad y agrega:
+
+- `monthlyTotalCost` y `monthlyTotalItems` para el mes UTC actual.
+- `volumeBreakdown`: cantidades por unidad de inventario (`kg`, `und`, `g`, etc.).
+- `costByCategory`: monto y porcentaje del gasto mensual por categoría.
+- `topExpensiveProducts`: hasta cinco productos con mayor costo acumulado mensual.
+- `averageTicketCost`: costo medio por registro de adquisición del mes; las compras sin costo cuentan como cero.
+
+El dashboard `/app/inventory` presenta las métricas de gasto, ítems, promedio, volumen, gasto por categoría y productos de mayor inversión. Los datos se calculan por propietario del inventario y ventana mensual UTC semiabierta para evitar incluir el primer instante del mes siguiente.

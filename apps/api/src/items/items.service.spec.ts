@@ -1,16 +1,18 @@
 import { describe, expect, it } from '@jest/globals';
 import { ItemsService } from './items.service.js';
 import { ListItemEntity, ListItemStatus } from '../entities/list-item.entity.js';
+import { InventoryPurchaseEntity } from '../entities/inventory-purchase.entity.js';
 import { ShoppingListStatus } from '../entities/shopping-list.entity.js';
 
 describe('ItemsService', () => {
   it('transitions an item to completed and sets the target quantity atomically', async () => {
     const item = { id: 'item-1', listId: 'list-1', targetQuantity: 3, purchasedQuantity: 0, status: ListItemStatus.PENDING, note: null };
     const saved: unknown[] = [];
+    const purchaseRepository = { findOne: async () => null, create: (value: unknown) => value, save: async (value: unknown) => value };
     const manager = {
       getRepository: (entity: unknown) => entity === ListItemEntity
         ? { findOne: async () => item, save: async (value: unknown) => { saved.push(value); return value; } }
-        : { findOne: async () => ({ id: 'list-1', creatorId: 'creator-1', assignedToId: 'buyer-1', status: ShoppingListStatus.ACTIVE }) },
+        : entity === InventoryPurchaseEntity ? purchaseRepository : { findOne: async () => ({ id: 'list-1', creatorId: 'creator-1', assignedToId: 'buyer-1', status: ShoppingListStatus.ACTIVE }) },
     };
     const dataSource = { transaction: async (work: (tx: typeof manager) => Promise<unknown>) => work(manager) };
     const service = new ItemsService({} as never, {} as never, {} as never, dataSource as never, {} as never);

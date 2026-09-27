@@ -52,7 +52,9 @@ export class ListsService {
       const group = itemsByCategory[item.categoryId] ?? { category: categoryMap.get(item.categoryId) ?? null, items: [] };
       group.items.push(item); itemsByCategory[item.categoryId] = group;
     }
-    return { list, itemsByCategory };
+    for (const group of Object.values(itemsByCategory)) group.items.sort((a, b) => a.name.localeCompare(b.name, 'es'));
+    const sortedGroups = Object.fromEntries(Object.entries(itemsByCategory).sort(([, a], [, b]) => (a.category?.name ?? 'Sin categoría').localeCompare(b.category?.name ?? 'Sin categoría', 'es')));
+    return { list, itemsByCategory: sortedGroups };
   }
 
   async assign(id: string, dto: AssignListDto, actor: ListActor): Promise<ShoppingListEntity> {

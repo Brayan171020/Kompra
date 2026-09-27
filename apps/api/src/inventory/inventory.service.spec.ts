@@ -17,11 +17,12 @@ describe('InventoryService', () => {
 
   it('calculates current-month category percentages and costs', async () => {
     const purchases = [
-      { categoryId: 'cat-a', quantity: 2, cost: 5 },
-      { categoryId: 'cat-a', quantity: 1, cost: null },
-      { categoryId: 'cat-b', quantity: 3, cost: 4 },
+      { categoryId: 'cat-a', productName: 'Manzana', unit: 'und', quantity: 2, cost: 5 },
+      { categoryId: 'cat-a', productName: 'Pera', unit: 'und', quantity: 1, cost: null },
+      { categoryId: 'cat-b', productName: 'Arroz', unit: 'kg', quantity: 3, cost: 4 },
     ];
-    const service = new InventoryService({ find: async () => purchases } as never, { findBy: async () => [{ id: 'cat-a', name: 'Frutas', color: '#00aa00' }, { id: 'cat-b', name: 'Víveres', color: '#ffaa00' }] } as never, {} as never, {} as never, {} as never);
+    const builder = { where: () => builder, andWhere: () => builder, orderBy: () => builder, getMany: async () => purchases };
+    const service = new InventoryService({ createQueryBuilder: () => builder } as never, { findBy: async () => [{ id: 'cat-a', name: 'Frutas', color: '#00aa00' }, { id: 'cat-b', name: 'Víveres', color: '#ffaa00' }] } as never, {} as never, {} as never, {} as never);
     const summary = await service.getSummary(actor);
     expect(summary.totalItems).toBe(3);
     expect(summary.totalQuantity).toBe(6);

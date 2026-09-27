@@ -6,7 +6,7 @@ import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn } from 
 @Index('IDX_inventory_created_at', ['createdAt'])
 @Index('IDX_inventory_category', ['categoryId'])
 @Index('IDX_inventory_creator', ['creatorId'])
-@Index('UQ_inventory_source_item', ['sourceItemId'], { unique: true })
+@Index('UQ_inventory_source_item_owner', ['sourceItemId', 'creatorId'], { unique: true, where: '"sourceItemId" IS NOT NULL' })
 export class InventoryPurchaseEntity {
   @PrimaryGeneratedColumn('uuid') id: string;
   @Column() productName: string;

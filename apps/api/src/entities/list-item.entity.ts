@@ -14,5 +14,6 @@ export class ListItemEntity {
   @Column({ type: 'enum', enum: ListItemStatus, default: ListItemStatus.PENDING }) status: ListItemStatus;
   @Column({ type: 'decimal', precision: 12, scale: 3, default: 0 }) purchasedQuantity: number;
   @Column({ type: 'text', nullable: true }) note: string | null;
+  @Column({ type: 'decimal', precision: 12, scale: 2, nullable: true }) cost: number | null;
   @CreateDateColumn() createdAt: Date;
 }

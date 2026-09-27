@@ -5,10 +5,12 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { CategoryEntity } from './entities/category.entity.js';
 import { InventoryPurchaseEntity } from './entities/inventory-purchase.entity.js';
+import { ListTemplateEntity } from './entities/list-template.entity.js';
 import { ListItemEntity } from './entities/list-item.entity.js';
 import { ShoppingListEntity } from './entities/shopping-list.entity.js';
 import { UserEntity } from './entities/user.entity.js';
 import { UserContactEntity } from './entities/user-contact.entity.js';
+import { TemplateItemEntity } from './entities/template-item.entity.js';
 import { AuthModule } from './auth/auth.module.js';
 import { HealthModule } from './health/health.module.js';
 import { CategoriesModule } from './categories/categories.module.js';
@@ -16,6 +18,8 @@ import { UsersModule } from './users/users.module.js';
 import { ListsModule } from './lists/lists.module.js';
 import { ItemsModule } from './items/items.module.js';
 import { InventoryModule } from './inventory/inventory.module.js';
+import { TemplatesModule } from './templates/templates.module.js';
+import { AddListTemplatesAndItemCost1780000000000 } from './migrations/1780000000000-add-list-templates-and-item-cost.js';
 
 @Module({
   imports: [
@@ -28,7 +32,9 @@ import { InventoryModule } from './inventory/inventory.module.js';
         type: 'postgres' as const,
         url: config.getOrThrow<string>('DATABASE_URL'),
         ssl: { rejectUnauthorized: false },
-        entities: [UserEntity, UserContactEntity, CategoryEntity, ShoppingListEntity, ListItemEntity, InventoryPurchaseEntity],
+        entities: [UserEntity, UserContactEntity, CategoryEntity, ShoppingListEntity, ListItemEntity, InventoryPurchaseEntity, ListTemplateEntity, TemplateItemEntity],
+        migrations: [AddListTemplatesAndItemCost1780000000000],
+        migrationsRun: true,
         synchronize: config.get('NODE_ENV') === 'development',
         autoLoadEntities: false,
       }),
@@ -40,6 +46,7 @@ import { InventoryModule } from './inventory/inventory.module.js';
     ListsModule,
     ItemsModule,
     InventoryModule,
+    TemplatesModule,
   ],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }],
 })
