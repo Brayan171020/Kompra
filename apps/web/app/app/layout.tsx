@@ -48,10 +48,18 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
   }, [isPending, session]);
 
   if (isPending) {
-    return <div className="flex min-h-screen items-center justify-center bg-stone-50"><div className="flex flex-col items-center gap-3"><div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" /><p className="text-sm font-medium text-stone-500">Cargando Kompra...</p></div></div>;
+    return <div className="flex min-h-dvh items-center justify-center bg-stone-50"><div className="flex flex-col items-center gap-3"><div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" /><p className="text-sm font-medium text-stone-500">Cargando Kompra...</p></div></div>;
   }
 
   if (!session) return null;
-  if (!identityReady) return <div className="flex min-h-screen items-center justify-center bg-[#f7f8f4] text-sm text-[#64736c]">{identityError ? <p role="alert">No pudimos preparar tu perfil: {identityError}</p> : <p>Preparando tu espacio…</p>}</div>;
-  return <><div className="min-h-screen">{children}</div><FriendNetwork /><ListAssignmentQuick />{canCreate ? <CategoryQuickCreate /> : null}</>;
+  if (!identityReady) return <div className="flex min-h-dvh items-center justify-center bg-[#f7f8f4] text-sm text-[#64736c]">{identityError ? <p role="alert">No pudimos preparar tu perfil: {identityError}</p> : <p>Preparando tu espacio…</p>}</div>;
+  return <>
+    <div className="min-h-dvh w-full min-w-0 pb-24 sm:pb-28">{children}</div>
+    <div className="fixed inset-x-0 bottom-0 z-20 border-t border-[#dce4dd] bg-white px-3 pt-2 pb-[calc(env(safe-area-inset-bottom)+0.5rem)] shadow-[0_-8px_24px_rgba(23,61,52,0.08)] lg:bottom-5 lg:mx-auto lg:w-fit lg:rounded-2xl lg:border lg:px-2 lg:pb-2">
+      <div className={`mx-auto grid max-w-xl gap-2 sm:flex sm:justify-center ${canCreate ? 'grid-cols-3' : 'grid-cols-1'}`}>
+        {canCreate ? <><CategoryQuickCreate /><ListAssignmentQuick /></> : null}
+        <FriendNetwork />
+      </div>
+    </div>
+  </>;
 }
