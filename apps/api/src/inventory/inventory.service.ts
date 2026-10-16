@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, ILike, In, Repository } from 'typeorm';
+import { DataSource, ILike, In, IsNull, Repository } from 'typeorm';
 import { CategoryEntity } from '../entities/category.entity.js';
 import { InventoryPurchaseEntity } from '../entities/inventory-purchase.entity.js';
 import { ProductEntity } from '../entities/product.entity.js';
@@ -25,7 +25,7 @@ export class InventoryService {
     if ((dto.unit === 'und' || dto.unit === 'paquete') && !Number.isInteger(Number(dto.quantity))) {
       throw new BadRequestException('Unit and package quantities must be whole numbers');
     }
-    await this.assertCategory(dto.categoryId);
+    await this.assertCategory(dto.categoryId, actor.id);
     const productName = dto.productName.trim();
     if (!(await this.productsCatalog.existsBy({ creatorId: actor.id, categoryId: dto.categoryId, name: ILike(productName) }))) {
       await this.productsCatalog.save(this.productsCatalog.create({
@@ -135,5 +135,5 @@ export class InventoryService {
     });
   }
 
-  private async assertCategory(categoryId: string): Promise<void> { if (!(await this.categories.existsBy({ id: categoryId }))) throw new NotFoundException('Category not found'); }
+  private async assertCategory(categoryId: string, userId: string): Promise<void> { if (!(await this.categories.exists({ where: [{ id: categoryId, creatorId: IsNull() }, { id: categoryId, creatorId: userId }] }))) throw new NotFoundException('Category not found'); }
 }

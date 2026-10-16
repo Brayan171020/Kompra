@@ -1,7 +1,7 @@
 import { PostgresDialect } from 'kysely';
 import { Pool } from 'pg';
 import { betterAuth } from 'better-auth';
-import { bearer, magicLink } from 'better-auth/plugins';
+import { bearer, magicLink, openAPI } from 'better-auth/plugins';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const databaseUrl = process.env.DATABASE_URL ?? 'postgresql://localhost:5432/kompra';
@@ -14,7 +14,7 @@ const googleClientSecret = process.env.GOOGLE_CLIENT_SECRET?.trim();
 
 const databasePool = new Pool({
   connectionString: databaseUrl,
-  ssl: databaseUrl.includes('neon.tech') ? { rejectUnauthorized: false } : undefined,
+  ssl: databaseUrl.includes('neon.tech') ? { rejectUnauthorized: true } : undefined,
 });
 
 export { trustedOrigins };
@@ -64,15 +64,14 @@ const auth = betterAuth({
   } : undefined,
   plugins: [
     bearer(),
+    openAPI(),
     magicLink({
       expiresIn: 60 * 15,
       rateLimit: { window: 60, max: 5 },
       sendMagicLink: async ({ email, url }) => {
         const webhookUrl = process.env.MAGIC_LINK_WEBHOOK_URL;
         if (!webhookUrl) {
-          if (isProduction) throw new Error('MAGIC_LINK_WEBHOOK_URL must be configured in production');
-          console.info(`[Kompra] Magic link for ${email}: ${url}`);
-          return;
+          throw new Error('MAGIC_LINK_WEBHOOK_URL must be configured to deliver magic links');
         }
         const response = await fetch(webhookUrl, {
           method: 'POST',

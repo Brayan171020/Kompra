@@ -119,7 +119,7 @@ navegador se mantiene mediante cookie segura reescrita por el proxy.
 1. `AuthGuard` es global. Si la ruta no tiene `@Public()`, primero obtiene la sesión con `auth.api.getSession({ headers: fromNodeHeaders(request.headers) })`. Si no la obtiene, intenta validar el Bearer token contra `neon_auth.session` y `neon_auth.user` usando TypeORM. Si ambos caminos fallan responde `401`; si uno tiene éxito, coloca `request.user` y `request.session`.
 2. `RolesGuard` también es global. Lee `@Roles(...)`; sin metadata no restringe. Si el usuario no tiene uno de los roles requeridos responde `403`.
 3. `@CurrentUser()` expone el usuario autenticado al controlador.
-4. `@Public()` solo se usa en `GET /health` y `GET /categories`.
+4. `@Public()` solo se usa en `GET /health`; `GET /categories` requiere sesión y limita las categorías privadas al propietario.
 
 ### Roles reales
 
@@ -297,7 +297,7 @@ La importación al inventario es una acción opcional posterior a finalizar la l
 |---|---|---|---|
 | Abrir Mi red | Abre modal y carga datos | `GET /api/v1/users/me/code` | `{ shareCode, contacts }`. |
 | Copiar | Copia `shareCode` al clipboard | — | Estado `copied` durante 1.6 s. |
-| Código de contacto | Normaliza a mayúsculas | — | Formato esperado `KMP-XXXXX`. |
+| Código de contacto | Normaliza a mayúsculas | — | Formato esperado `KMP-` y 24 caracteres hexadecimales. |
 | Vincular amigo | Crea relación y vuelve a cargar red | `POST /api/v1/users/contacts/link` | `{ code }`; éxito muestra mensaje. |
 | Cerrar / click fuera | Cierra modal | — | — |
 
@@ -380,8 +380,8 @@ Los endpoints adicionales de Better Auth dependen del handler/versionado de la l
 
 ### `GET /api/v1/categories`
 
-- **Auth:** pública.
-- **Lógica:** devuelve todas las categorías ordenadas ascendentemente por `name`.
+- **Auth:** sesión requerida.
+- **Lógica:** devuelve categorías globales y categorías propias, ordenadas ascendentemente por `name`.
 - **200:** `CategoryEntity[]`, cada elemento `{ id, name, color, icon, creatorId }`.
 - **Efectos:** `CategoriesService.onModuleInit()` inserta siete categorías por defecto si la tabla está vacía: Víveres y alimentos, Frutas y verduras, Hogar y limpieza, Herramientas, Ferretería, Repuestos e Insumos de trabajo.
 
@@ -400,7 +400,7 @@ Los endpoints adicionales de Better Auth dependen del handler/versionado de la l
 ### `GET /api/v1/users/me`
 
 - **Auth:** requerida, cualquier rol.
-- **Lógica:** sincroniza/upsert de la identidad en `public.users`; los usuarios nuevos empiezan como `CREATOR`, excepto si una invitación vigente coincide con su correo verificado. Aceptar la invitación registra `BUYER`, crea los contactos bidireccionales y refleja el rol en `neon_auth.user` si tiene columna `role`. Genera `shareCode` determinista `KMP-` + primeros 5 caracteres del UUID sin guiones.
+- **Lógica:** sincroniza/upsert de la identidad en `public.users`; los usuarios nuevos empiezan como `CREATOR`, excepto si una invitación vigente coincide con su correo verificado. Aceptar la invitación registra `BUYER`, crea los contactos bidireccionales y refleja el rol en `neon_auth.user` si tiene columna `role`. Genera una vez un `shareCode` aleatorio de 96 bits; una migración rota los códigos deterministas antiguos.
 - **200:** `{ user: { id, name, email, role, createdAt }, session: { userId } }`.
 - **401:** sesión ausente.
 - **Efectos:** upsert de usuario de dominio.
@@ -409,7 +409,7 @@ Los endpoints adicionales de Better Auth dependen del handler/versionado de la l
 
 - **Auth:** requerida.
 - **Lógica:** garantiza el perfil y el código; devuelve contactos del usuario.
-- **200:** `{ shareCode: string, contacts: UserEntity[], role: "CREATOR" | "BUYER" }`.
+- **200:** `{ shareCode: string, contacts: { id, name, email, role }[], role: "CREATOR" | "BUYER" }`.
 - **404:** `User profile not found` si no existe la fila de dominio.
 
 ### `GET /api/v1/users/contacts`
@@ -421,7 +421,7 @@ Los endpoints adicionales de Better Auth dependen del handler/versionado de la l
 ### `POST /api/v1/users/contacts/link`
 
 - **Auth:** requerida.
-- **Body `LinkContactDto`:** `{ code: string }`, longitud 9 y regex `^KMP-[A-Z0-9]{5}$`.
+- **Body `LinkContactDto`:** `{ code: string }`, longitud 28 y regex `^KMP-[A-F0-9]{24}$`.
 - **201/200:** usuario de contacto vinculado.
 - **400:** código propio o body inválido.
 - **404:** código no encontrado.
@@ -621,7 +621,7 @@ Una compra de inventario no tiene estados de pago, envío ni entrega; es un regi
 - Los ítems se autorizan indirectamente por su lista; no basta con conocer un UUID.
 - El inventario siempre se filtra por `creatorId` del usuario autenticado.
 - La asignación de un BUYER exige una relación en `user_contacts`.
-- Categorías son públicas para lectura, pero su creación exige `CREATOR`.
+- Las categorías requieren sesión para lectura; cada usuario ve las globales y las propias. Su creación exige `CREATOR`.
 - La validación de entrada está centralizada y no permite campos extra.
 
 ## 4.4 Observaciones de implementación
@@ -648,7 +648,7 @@ Una compra de inventario no tiene estados de pago, envío ni entrega; es un regi
 ### Plantillas de listas
 
 - `POST /api/v1/templates` crea una plantilla y sus ítems opcionales. `POST /api/v1/templates/from-list/:listId` clona una lista `ACTIVE` propia.
-- `GET /api/v1/templates` lista plantillas del creator actual; `GET /api/v1/templates/:id` devuelve el detalle. `PATCH /api/v1/templates/:id` permite cambiar título y/o reemplazar ítems; `DELETE /api/v1/templates/:id` elimina la plantilla.
+- `GET /api/v1/templates` lista las plantillas del creador actual con su detalle. `PATCH /api/v1/templates/:id` permite cambiar título y/o reemplazar ítems; `DELETE /api/v1/templates/:id` elimina la plantilla.
 - `POST /api/v1/templates/:id/instantiate` crea una nueva lista `ACTIVE` e ítems pendientes. Las modificaciones posteriores a la lista no afectan a la plantilla.
 - Todos los endpoints de plantillas requieren `CREATOR` y comprueban propiedad. Los productos deben referenciar categorías existentes.
 - En `/app`, los creadores pueden crear/editar/eliminar plantillas, guardar la lista activa como plantilla y usar una plantilla para abrir una lista modificable. Los compradores no ven acciones de creación de listas o plantillas.

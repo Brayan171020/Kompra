@@ -9,9 +9,7 @@ export class RequestLoggerMiddleware implements NestMiddleware {
     const startedAt = Date.now();
     const details = {
       method: request.method,
-      url: request.originalUrl || request.url,
-      origin: request.get('origin') || null,
-      forwardedFor: request.get('x-forwarded-for') || null,
+      path: request.path,
     };
     response.on('finish', () => {
       const payload = JSON.stringify({ ...details, statusCode: response.statusCode, durationMs: Date.now() - startedAt });

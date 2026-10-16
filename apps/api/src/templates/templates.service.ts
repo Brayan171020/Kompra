@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, ILike, In, Repository } from 'typeorm';
+import { DataSource, ILike, In, IsNull, Repository } from 'typeorm';
 import { CategoryEntity } from '../entities/category.entity.js';
 import { ListItemEntity, ListItemStatus } from '../entities/list-item.entity.js';
 import { ListTemplateEntity } from '../entities/list-template.entity.js';
@@ -27,7 +27,7 @@ export class TemplatesService {
 
   async create(dto: CreateTemplateDto, actor: ListActor): Promise<ListTemplateEntity> {
     this.assertCreator(actor);
-    await this.assertCategories(dto.items ?? []);
+    await this.assertCategories(dto.items ?? [], actor.id);
     return this.dataSource.transaction(async (manager) => {
       const templateRepository = manager.getRepository(ListTemplateEntity);
       const template = await templateRepository.save(templateRepository.create({ title: dto.title.trim(), creatorId: actor.id }));
@@ -42,7 +42,7 @@ export class TemplatesService {
     const list = await this.listsService.getAuthorizedList(listId, actor, true);
     if (list.status !== ShoppingListStatus.ACTIVE) throw new BadRequestException('Only active lists can be saved as templates');
     const items = await this.listItems.find({ where: { listId }, order: { createdAt: 'ASC' } });
-    await this.assertCategories(items);
+    await this.assertCategories(items, actor.id);
     return this.create({ title: list.title, items: items.map(({ categoryId, name, quantityType, targetQuantity, note }) => ({ categoryId, name, quantityType, targetQuantity: Number(targetQuantity), note: note ?? undefined })) }, actor);
   }
 
@@ -51,17 +51,9 @@ export class TemplatesService {
     return this.templates.find({ where: { creatorId: actor.id }, relations: { items: true }, order: { updatedAt: 'DESC' } });
   }
 
-  async findOne(id: string, actor: ListActor): Promise<ListTemplateEntity> {
-    this.assertCreator(actor);
-    const template = await this.templates.findOne({ where: { id }, relations: { items: true } });
-    if (!template) throw new NotFoundException('Template not found');
-    if (template.creatorId !== actor.id) throw new ForbiddenException('You cannot access this template');
-    return template;
-  }
-
   async update(id: string, dto: UpdateTemplateDto, actor: ListActor): Promise<ListTemplateEntity> {
     this.assertCreator(actor);
-    if (dto.items) await this.assertCategories(dto.items);
+    if (dto.items) await this.assertCategories(dto.items, actor.id);
     return this.dataSource.transaction(async (manager) => {
       const templateRepository = manager.getRepository(ListTemplateEntity);
       const template = await templateRepository.findOne({ where: { id }, lock: { mode: 'pessimistic_write' } });
@@ -108,7 +100,7 @@ export class TemplatesService {
     if (actor.role !== UserRole.CREATOR) throw new ForbiddenException('Only creators can manage list templates');
   }
 
-  private async assertCategories(items: Array<{ categoryId: string; quantityType?: string; targetQuantity?: number | string }>): Promise<void> {
+  private async assertCategories(items: Array<{ categoryId: string; quantityType?: string; targetQuantity?: number | string }>, userId: string): Promise<void> {
     for (const item of items) {
       if (item.quantityType === 'UNIT' && item.targetQuantity !== undefined && !Number.isInteger(Number(item.targetQuantity))) {
         throw new BadRequestException('Unit quantities must be whole numbers');
@@ -116,7 +108,7 @@ export class TemplatesService {
     }
     const ids = [...new Set(items.map((item) => item.categoryId))];
     if (!ids.length) return;
-    const found = await this.categories.find({ where: { id: In(ids) }, select: { id: true } });
+    const found = await this.categories.find({ where: [{ id: In(ids), creatorId: IsNull() }, { id: In(ids), creatorId: userId }], select: { id: true } });
     if (found.length !== ids.length) throw new NotFoundException('One or more categories were not found');
   }
 

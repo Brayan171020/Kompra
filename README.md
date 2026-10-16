@@ -89,10 +89,9 @@ MAGIC_LINK_WEBHOOK_URL=<trusted email delivery webhook>
 NEXT_PUBLIC_NEON_AUTH_URL=https://ep-fancy-star-b5njfgl0.neonauth.c-7.us-east-2.aws.neon.tech/neondb/auth
 ```
 
-`MAGIC_LINK_WEBHOOK_URL` receives `{ email, url }` as JSON. In local development,
-when it is absent, Better Auth logs the generated link instead of attempting an
-external delivery. Production startup/requests require a configured delivery
-endpoint.
+`MAGIC_LINK_WEBHOOK_URL` receives `{ email, url }` as JSON. Magic Link requests
+require a configured delivery endpoint in every environment; authentication
+links are never written to application logs.
 
 The production Neon branch contains the managed `neon_auth` schema and its
 `user`, `session`, `account` and `project_config` tables. Kompra exposes
@@ -110,8 +109,16 @@ will additionally require `BETTER_AUTH_SECRET` and `BETTER_AUTH_URL` when Phase
 ## API Documentation & Swagger
 
 The API uses a global `/api` prefix and URI versioning. Versioned resources are
-available under `/api/v1/*`; interactive OpenAPI documentation is available at
-`/api/docs` while the API is running.
+available under `/api/v1/*`. Swagger documents the business endpoints, request
+and response schemas, validation errors, bearer-session authorization, and
+production/local API servers. Better Auth publishes a separate reference for
+its authentication endpoints.
+
+| Documentation | Production | Local development |
+| --- | --- | --- |
+| Swagger UI | https://kompra.onrender.com/api/docs | http://localhost:4000/api/docs |
+| OpenAPI JSON | https://kompra.onrender.com/api/docs-json | http://localhost:4000/api/docs-json |
+| Better Auth reference | https://kompra.onrender.com/api/v1/auth/reference | http://localhost:4000/api/v1/auth/reference |
 
 The initial health check is:
 

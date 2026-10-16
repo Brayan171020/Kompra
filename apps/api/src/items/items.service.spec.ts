@@ -1,10 +1,19 @@
-import { describe, expect, it } from '@jest/globals';
+import { describe, expect, it, jest } from '@jest/globals';
+import { NotFoundException } from '@nestjs/common';
 import { ItemsService } from './items.service.js';
-import { ListItemEntity, ListItemStatus } from '../entities/list-item.entity.js';
+import { ListItemEntity, ListItemStatus, QuantityType } from '../entities/list-item.entity.js';
 import { InventoryPurchaseEntity } from '../entities/inventory-purchase.entity.js';
 import { ShoppingListStatus } from '../entities/shopping-list.entity.js';
 
 describe('ItemsService', () => {
+  it('does not accept a category outside the list creator scope', async () => {
+    const exists = jest.fn(async () => false);
+    const service = new ItemsService({} as never, { exists } as never, {} as never, {} as never, {} as never,
+      { getAuthorizedList: async () => ({ creatorId: 'creator-1', status: ShoppingListStatus.ACTIVE }) } as never);
+    await expect(service.create('list-1', { name: 'Pan', categoryId: 'foreign-category', quantityType: QuantityType.UNIT, targetQuantity: 1 }, { id: 'creator-1', role: 'CREATOR' })).rejects.toThrow(NotFoundException);
+    expect(exists).toHaveBeenCalledWith(expect.objectContaining({ where: expect.arrayContaining([expect.objectContaining({ creatorId: 'creator-1' })]) }));
+  });
+
   it('transitions an item to completed and sets the target quantity atomically', async () => {
     const item = { id: 'item-1', listId: 'list-1', targetQuantity: 3, purchasedQuantity: 0, status: ListItemStatus.PENDING, note: null };
     const saved: unknown[] = [];

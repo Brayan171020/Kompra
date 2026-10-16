@@ -21,12 +21,12 @@ async function seedAdmin(): Promise<void> {
 
   const pool = new Pool({
     connectionString: databaseUrl,
-    ssl: databaseUrl.includes('neon.tech') ? { rejectUnauthorized: false } : undefined,
+    ssl: databaseUrl.includes('neon.tech') ? { rejectUnauthorized: true } : undefined,
   });
   const dataSource = new DataSource({
     type: 'postgres',
     url: databaseUrl,
-    ssl: databaseUrl.includes('neon.tech') ? { rejectUnauthorized: false } : undefined,
+    ssl: databaseUrl.includes('neon.tech') ? { rejectUnauthorized: true } : undefined,
     entities: [UserEntity],
     synchronize: false,
   });
@@ -46,9 +46,9 @@ async function seedAdmin(): Promise<void> {
       body: { email: adminEmail, password, name: adminName, role: UserRole.CREATOR } as never,
       });
       userId = result.user.id;
-      console.log(`Created Better Auth administrator ${adminEmail}.`);
+      console.log('Created Better Auth administrator.');
     } else {
-      console.log(`Better Auth administrator ${adminEmail} already exists; leaving its password unchanged.`);
+      console.log('Better Auth administrator already exists; leaving its password unchanged.');
     }
 
     await pool.query('UPDATE neon_auth."user" SET role = $1 WHERE id = $2', [UserRole.CREATOR, userId]);
@@ -63,7 +63,7 @@ async function seedAdmin(): Promise<void> {
       role: UserRole.CREATOR,
       ...(domainUser ? { createdAt: domainUser.createdAt } : {}),
     }));
-    console.log(`Synchronized domain administrator ${adminEmail} as CREATOR.`);
+    console.log('Synchronized domain administrator as CREATOR.');
 
     const additionalCreators = await pool.query<{ id: string; email: string }>(
       'SELECT id, email FROM neon_auth."user" WHERE lower(email) = ANY($1::text[]) AND id <> $2',
@@ -72,7 +72,7 @@ async function seedAdmin(): Promise<void> {
     for (const creator of additionalCreators.rows) {
       await pool.query('UPDATE neon_auth."user" SET role = $1 WHERE id = $2', [UserRole.CREATOR, creator.id]);
       await repository.update({ email: creator.email }, { role: UserRole.CREATOR });
-      console.log(`Elevated designated creator ${creator.email} in both schemas.`);
+      console.log('Elevated designated creator in both schemas.');
     }
   } finally {
     await dataSource.destroy().catch(() => undefined);
@@ -81,6 +81,6 @@ async function seedAdmin(): Promise<void> {
 }
 
 seedAdmin().catch((error: unknown) => {
-  console.error('Admin seed failed:', error);
+  console.error('Admin seed failed:', error instanceof Error ? error.name : 'UnknownError');
   process.exitCode = 1;
 });

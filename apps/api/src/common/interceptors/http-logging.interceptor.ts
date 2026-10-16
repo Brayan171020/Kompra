@@ -13,9 +13,7 @@ export class HttpLoggingInterceptor implements NestInterceptor {
     const startedAt = Date.now();
     const details = {
       method: request.method,
-      url: request.originalUrl || request.url,
-      origin: request.get('origin') || null,
-      forwardedFor: request.get('x-forwarded-for') || null,
+      path: request.path,
     };
 
     return next.handle().pipe(
@@ -24,7 +22,7 @@ export class HttpLoggingInterceptor implements NestInterceptor {
           ...details,
           statusCode: response.statusCode >= 400 ? response.statusCode : this.getErrorStatus(error),
           durationMs: Date.now() - startedAt,
-          error: this.getErrorBody(error),
+          errorName: error instanceof Error ? error.name : 'UnknownError',
         }));
         return throwError(() => error);
       }),
@@ -46,8 +44,4 @@ export class HttpLoggingInterceptor implements NestInterceptor {
     return 500;
   }
 
-  private getErrorBody(error: unknown): unknown {
-    if (error instanceof Error) return { name: error.name, message: error.message, stack: error.stack };
-    return error;
-  }
 }

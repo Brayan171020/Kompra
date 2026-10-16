@@ -18,7 +18,7 @@ const groups = [
 async function seedMarket(): Promise<void> {
   const databaseUrl = process.env.DATABASE_URL;
   if (!databaseUrl) throw new Error('DATABASE_URL must be configured.');
-  const dataSource = new DataSource({ type: 'postgres', url: databaseUrl, ssl: databaseUrl.includes('neon.tech') ? { rejectUnauthorized: false } : undefined, entities: [UserEntity, UserContactEntity, CategoryEntity, ShoppingListEntity, ListItemEntity, InventoryPurchaseEntity], synchronize: false });
+  const dataSource = new DataSource({ type: 'postgres', url: databaseUrl, ssl: databaseUrl.includes('neon.tech') ? { rejectUnauthorized: true } : undefined, entities: [UserEntity, UserContactEntity, CategoryEntity, ShoppingListEntity, ListItemEntity, InventoryPurchaseEntity], synchronize: false });
   await dataSource.initialize();
   try {
     const users = dataSource.getRepository(UserEntity); const categories = dataSource.getRepository(CategoryEntity); const lists = dataSource.getRepository(ShoppingListEntity); const items = dataSource.getRepository(ListItemEntity);
@@ -33,8 +33,8 @@ async function seedMarket(): Promise<void> {
         if (!existing) await items.save(items.create({ listId: list.id, categoryId: category.id, name, quantityType, targetQuantity: quantity, status: ListItemStatus.PENDING, purchasedQuantity: 0, note: `Unidad estándar: ${unit}` }));
       }
     }
-    console.log(`Seeded market items into list ${list.id} for ${email}.`);
+    console.log('Seeded market items into list.');
   } finally { await dataSource.destroy(); }
 }
 
-seedMarket().catch((error: unknown) => { console.error('Market seed failed:', error); process.exitCode = 1; });
+seedMarket().catch((error: unknown) => { console.error('Market seed failed:', error instanceof Error ? error.name : 'UnknownError'); process.exitCode = 1; });

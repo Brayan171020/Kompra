@@ -9,7 +9,7 @@ const actor = { id: 'creator-1', role: 'CREATOR' };
 describe('InventoryService', () => {
   it('creates a validated manual purchase for the current user', async () => {
     const saved = jest.fn(async (value: unknown) => value);
-    const service = new InventoryService({ create: (value: unknown) => value, save: saved } as never, { existsBy: async () => true } as never, { existsBy: async () => false, create: (value: unknown) => value, save: async (value: unknown) => value } as never, {} as never, {} as never, {} as never);
+    const service = new InventoryService({ create: (value: unknown) => value, save: saved } as never, { exists: async () => true } as never, { existsBy: async () => false, create: (value: unknown) => value, save: async (value: unknown) => value } as never, {} as never, {} as never, {} as never);
     const purchase = await service.create({ productName: 'Leche', categoryId: 'category-1', quantity: 2, unit: InventoryUnit.UNIT, purchaseDate: '2026-09-20T12:00:00.000Z' }, actor);
     expect(saved).toHaveBeenCalledWith(expect.objectContaining({ productName: 'Leche', creatorId: 'creator-1', cost: null, sourceItemId: null }));
     expect(purchase.productName).toBe('Leche');

@@ -54,7 +54,7 @@ describe('Kompra API E2E contract (isolated in-memory services)', () => {
         { provide: ListsService, useValue: listService },
         { provide: ItemsService, useValue: itemService },
         { provide: InventoryService, useValue: inventoryService },
-        { provide: APP_GUARD, useFactory: () => ({ canActivate: (context: { switchToHttp: () => { getRequest: () => { headers: Record<string, string>; path?: string; user?: unknown } } }) => { const request = context.switchToHttp().getRequest(); if (request.path === '/api/v1/health' || request.path === '/api/v1/categories') return true; if (request.headers['x-test-auth'] !== 'creator') throw new UnauthorizedException(); request.user = actor; return true; } }) },
+        { provide: APP_GUARD, useFactory: () => ({ canActivate: (context: { switchToHttp: () => { getRequest: () => { headers: Record<string, string>; path?: string; user?: unknown } } }) => { const request = context.switchToHttp().getRequest(); if (request.path === '/api/v1/health') return true; if (request.headers['x-test-auth'] !== 'creator') throw new UnauthorizedException(); request.user = actor; return true; } }) },
         { provide: APP_GUARD, useClass: RolesGuard },
         Reflector,
       ],
@@ -68,9 +68,10 @@ describe('Kompra API E2E contract (isolated in-memory services)', () => {
 
   afterAll(async () => app.close());
 
-  it('serves health and public categories without authentication', async () => {
+  it('serves public health and restricts categories to authenticated users', async () => {
     await request(app.getHttpServer()).get('/api/v1/health').expect(200).expect(({ body }) => expect(body.database).toBe('in-memory'));
-    await request(app.getHttpServer()).get('/api/v1/categories').expect(200).expect(({ body }) => expect(body[0].id).toBe(categoryId));
+    await request(app.getHttpServer()).get('/api/v1/categories').expect(401);
+    await request(app.getHttpServer()).get('/api/v1/categories').set('x-test-auth', 'creator').expect(200).expect(({ body }) => expect(body[0].id).toBe(categoryId));
   });
 
   it('rejects unauthenticated list creation and creates a valid list when authenticated', async () => {

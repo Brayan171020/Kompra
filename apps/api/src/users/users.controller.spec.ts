@@ -4,6 +4,7 @@ import { Test } from '@nestjs/testing';
 import { APP_GUARD } from '@nestjs/core';
 import { VersioningType } from '@nestjs/common';
 import request from 'supertest';
+import { DataSource } from 'typeorm';
 
 const getSessionMock = jest.fn<() => Promise<unknown>>().mockResolvedValue(null);
 jest.unstable_mockModule('../auth/auth.js', () => ({ auth: { api: { getSession: getSessionMock } } }));
@@ -19,6 +20,7 @@ describe('UsersController smoke test', () => {
       controllers: [UsersController],
       providers: [
         { provide: UsersService, useValue: {} },
+        { provide: DataSource, useValue: { getRepository: () => ({ findOne: async () => null }), query: async () => [] } },
         { provide: APP_GUARD, useClass: AuthGuard },
       ],
     }).compile();

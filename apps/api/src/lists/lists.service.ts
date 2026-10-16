@@ -87,7 +87,8 @@ export class ListsService {
     const user = await this.users.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('Assigned user not found');
     if (user.role !== UserRole.BUYER && user.role !== UserRole.CREATOR) throw new BadRequestException('Only BUYER or CREATOR users can be assigned');
-    if (user.role === UserRole.BUYER && !(await this.contacts.findOneBy({ userId: actorId, contactId: userId }))) throw new ForbiddenException('The assigned buyer must be in your contact network');
+    if (user.id === actorId) throw new BadRequestException('You cannot assign a list to yourself');
+    if (!(await this.contacts.findOneBy({ userId: actorId, contactId: userId }))) throw new ForbiddenException('The assigned user must be in your contact network');
   }
 
 }

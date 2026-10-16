@@ -1,6 +1,6 @@
 import { ConflictException, Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { CategoryEntity } from '../entities/category.entity.js';
 import { CreateCategoryDto } from './dto/create-category.dto.js';
 
@@ -20,7 +20,7 @@ export class CategoriesService implements OnModuleInit {
     }
   }
 
-  findAll(): Promise<CategoryEntity[]> { return this.repository.find({ order: { name: 'ASC' } }); }
+  findAll(userId: string): Promise<CategoryEntity[]> { return this.repository.find({ where: [{ creatorId: IsNull() }, { creatorId: userId }], order: { name: 'ASC' } }); }
 
   async create(dto: CreateCategoryDto, creatorId: string): Promise<CategoryEntity> {
     const name = dto.name.trim();

@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, ILike, Repository } from 'typeorm';
+import { DataSource, ILike, IsNull, Repository } from 'typeorm';
 import { CategoryEntity } from '../entities/category.entity.js';
 import { InventoryPurchaseEntity } from '../entities/inventory-purchase.entity.js';
 import { ProductEntity } from '../entities/product.entity.js';
@@ -25,7 +25,7 @@ export class ItemsService {
     const list = await this.listsService.getAuthorizedList(listId, actor, true);
     this.assertActive(list);
     this.assertQuantity(dto.quantityType, dto.targetQuantity);
-    if (!(await this.categories.existsBy({ id: dto.categoryId }))) throw new NotFoundException('Category not found');
+    if (!(await this.categories.exists({ where: [{ id: dto.categoryId, creatorId: IsNull() }, { id: dto.categoryId, creatorId: list.creatorId }] }))) throw new NotFoundException('Category not found');
     const name = dto.name.trim();
     if (!(await this.products.existsBy({ creatorId: list.creatorId, categoryId: dto.categoryId, name: ILike(name) }))) {
       await this.products.save(this.products.create({ creatorId: list.creatorId, categoryId: dto.categoryId, name, quantityType: dto.quantityType }));

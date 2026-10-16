@@ -13,6 +13,6 @@ export class HttpExceptionFilter implements ExceptionFilter {
       ? (exceptionResponse as { message: unknown }).message
       : exceptionResponse ?? 'Internal server error';
 
-    response.status(status).json({ timestamp: new Date().toISOString(), status, path: request.url, message });
+    response.status(status).json({ timestamp: new Date().toISOString(), status, path: request.path, message });
   }
 }

@@ -39,10 +39,21 @@ describe('ListsService', () => {
       repo({ findOne: async () => ({ id: 'list-1', creatorId: 'creator-1', assignedToId: null, status: ShoppingListStatus.ACTIVE }) }) as never,
       repo() as never,
       repo({ findOne: async () => ({ id: 'creator-2', role: UserRole.CREATOR }) }) as never,
-      repo() as never,
+      repo({ findOneBy: async () => ({ userId: 'creator-1', contactId: 'creator-2' }) }) as never,
       repo() as never,
     );
     const list = await service.assign('list-1', { assignedToId: 'creator-2' }, { id: 'creator-1', role: UserRole.CREATOR });
     expect(list.assignedToId).toBe('creator-2');
+  });
+
+  it('rejects assignment to a creator outside the contact network', async () => {
+    const service = new ListsService(
+      repo({ findOne: async () => ({ id: 'list-1', creatorId: 'creator-1', assignedToId: null, status: ShoppingListStatus.ACTIVE }) }) as never,
+      repo() as never,
+      repo({ findOne: async () => ({ id: 'creator-2', role: UserRole.CREATOR }) }) as never,
+      repo() as never,
+      repo() as never,
+    );
+    await expect(service.assign('list-1', { assignedToId: 'creator-2' }, { id: 'creator-1', role: UserRole.CREATOR })).rejects.toThrow(ForbiddenException);
   });
 });

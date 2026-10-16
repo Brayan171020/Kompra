@@ -4,6 +4,7 @@ import { DataSource, IsNull, MoreThan, Repository } from 'typeorm';
 import { UserEntity, UserRole } from '../entities/user.entity.js';
 import { UserContactEntity } from '../entities/user-contact.entity.js';
 import { BuyerInvitationEntity } from '../entities/buyer-invitation.entity.js';
+import { randomBytes } from 'node:crypto';
 
 export interface AuthUserSnapshot {
   id: string;
@@ -11,6 +12,12 @@ export interface AuthUserSnapshot {
   email: string;
   role?: string | null;
   emailVerified?: boolean;
+}
+
+export type ContactSummary = Pick<UserEntity, 'id' | 'name' | 'email' | 'role'>;
+
+function toContactSummary(user: UserEntity): ContactSummary {
+  return { id: user.id, name: user.name, email: user.email, role: user.role };
 }
 
 @Injectable()
@@ -30,7 +37,7 @@ export class UsersService {
       ? await this.invitationsRepository.find({ where: { email, acceptedAt: IsNull(), expiresAt: MoreThan(new Date()) } })
       : [];
     const role = pendingInvitations.length ? UserRole.BUYER : existing?.role ?? UserRole.CREATOR;
-    const shareCode = this.makeShareCode(user.id);
+    const shareCode = existing?.shareCode?.length === 28 ? existing.shareCode : this.makeShareCode();
     await this.usersRepository.upsert({ id: user.id, name, email, role, shareCode }, ['id']);
 
     for (const invitation of pendingInvitations) {
@@ -59,12 +66,8 @@ export class UsersService {
     const url = `${appUrl.replace(/\/$/, '')}/register?email=${encodeURIComponent(email)}`;
 
     if (!webhookUrl) {
-      if (process.env.NODE_ENV === 'production') {
-        await this.invitationsRepository.delete(invitation.id);
-        throw new ServiceUnavailableException('Buyer invitation email delivery is not configured');
-      }
-      console.info(`[Kompra] Buyer invitation for ${email}: ${url}`);
-      return { email, expiresAt: invitation.expiresAt };
+      await this.invitationsRepository.delete(invitation.id);
+      throw new ServiceUnavailableException('Buyer invitation email delivery is not configured');
     }
 
     try {
@@ -74,24 +77,24 @@ export class UsersService {
         body: JSON.stringify({ email, url }),
       });
       if (!response.ok) throw new Error(`Invitation email delivery failed with status ${response.status}`);
-    } catch (error) {
+    } catch {
       await this.invitationsRepository.delete(invitation.id);
-      throw new ServiceUnavailableException(error instanceof Error ? error.message : 'Invitation email delivery failed');
+      throw new ServiceUnavailableException('Invitation email delivery failed');
     }
     return { email, expiresAt: invitation.expiresAt };
   }
 
-  async getNetwork(userId: string): Promise<{ shareCode: string; contacts: UserEntity[]; role: UserRole }> {
+  async getNetwork(userId: string): Promise<{ shareCode: string; contacts: ContactSummary[]; role: UserRole }> {
     const user = await this.usersRepository.findOneBy({ id: userId });
     if (!user) throw new NotFoundException('User profile not found');
-    if (!user.shareCode) {
-      user.shareCode = this.makeShareCode(user.id);
+    if (!user.shareCode || user.shareCode.length !== 28) {
+      user.shareCode = this.makeShareCode();
       await this.usersRepository.save(user);
     }
     return { shareCode: user.shareCode, contacts: await this.getContacts(userId), role: user.role };
   }
 
-  async linkContact(userId: string, code: string): Promise<UserEntity> {
+  async linkContact(userId: string, code: string): Promise<ContactSummary> {
     const contact = await this.usersRepository.findOneBy({ shareCode: code.trim().toUpperCase() });
     if (!contact) throw new NotFoundException('Contact code not found');
     if (contact.id === userId) throw new BadRequestException('You cannot link your own code');
@@ -100,7 +103,7 @@ export class UsersService {
       await this.contactsRepository.save(this.contactsRepository.create({ userId, contactId: contact.id }));
       await this.contactsRepository.save(this.contactsRepository.create({ userId: contact.id, contactId: userId }));
     }
-    return contact;
+    return toContactSummary(contact);
   }
 
   private async ensureContactPair(userId: string, contactId: string): Promise<void> {
@@ -120,17 +123,17 @@ export class UsersService {
     if (hasRoleColumn) await this.dataSource.query(`UPDATE neon_auth."user" SET role = $1 WHERE id = $2`, [role, userId]);
   }
 
-  async getContacts(userId: string): Promise<UserEntity[]> {
+  async getContacts(userId: string): Promise<ContactSummary[]> {
     const links = await this.contactsRepository.find({ where: { userId } });
     if (!links.length) return [];
-    return this.usersRepository.findByIds(links.map((link) => link.contactId));
+    return (await this.usersRepository.findByIds(links.map((link) => link.contactId))).map(toContactSummary);
   }
 
   async isContact(userId: string, contactId: string): Promise<boolean> {
     return Boolean(await this.contactsRepository.findOneBy({ userId, contactId }));
   }
 
-  private makeShareCode(id: string): string {
-    return `KMP-${id.replace(/-/g, '').slice(0, 5).toUpperCase()}`;
+  private makeShareCode(): string {
+    return `KMP-${randomBytes(12).toString('hex').toUpperCase()}`;
   }
 }

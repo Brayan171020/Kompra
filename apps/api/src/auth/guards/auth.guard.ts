@@ -1,16 +1,16 @@
-import { CanActivate, ExecutionContext, Injectable, Optional, UnauthorizedException } from '@nestjs/common';
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { fromNodeHeaders } from 'better-auth/node';
 import type { Request } from 'express';
 import { Reflector } from '@nestjs/core';
 import { DataSource } from 'typeorm';
 import { auth } from '../auth.js';
 import { IS_PUBLIC_KEY } from '../decorators/public.decorator.js';
+import { UserEntity } from '../../entities/user.entity.js';
 
 type AuthenticatedRequest = Request & { user?: unknown; session?: unknown };
 type NeonSessionRow = {
   sessionId: string;
   sessionUserId: string;
-  sessionToken: string;
   sessionExpiresAt: Date;
   sessionIpAddress: string | null;
   sessionUserAgent: string | null;
@@ -19,12 +19,11 @@ type NeonSessionRow = {
   userEmail: string;
   userEmailVerified: boolean;
   userImage: string | null;
-  userRole: string | null;
 };
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector, @Optional() private readonly dataSource?: DataSource) {}
+  constructor(private readonly reflector: Reflector, private readonly dataSource: DataSource) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [context.getHandler(), context.getClass()]);
@@ -33,7 +32,7 @@ export class AuthGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
     const session = await auth.api.getSession({ headers: fromNodeHeaders(request.headers) });
     if (session) {
-      request.user = session.user;
+      request.user = { ...session.user, role: await this.getProfileRole(session.user.id) };
       request.session = session.session;
       return true;
     }
@@ -47,12 +46,11 @@ export class AuthGuard implements CanActivate {
       email: neonSession.userEmail,
       emailVerified: neonSession.userEmailVerified,
       image: neonSession.userImage,
-      role: neonSession.userRole,
+      role: await this.getProfileRole(neonSession.userId),
     };
     request.session = {
       id: neonSession.sessionId,
       userId: neonSession.sessionUserId,
-      token: neonSession.sessionToken,
       expiresAt: neonSession.sessionExpiresAt,
       ipAddress: neonSession.sessionIpAddress,
       userAgent: neonSession.sessionUserAgent,
@@ -60,8 +58,12 @@ export class AuthGuard implements CanActivate {
     return true;
   }
 
+  private async getProfileRole(userId: string): Promise<string | undefined> {
+    const profile = await this.dataSource.getRepository(UserEntity).findOne({ where: { id: userId }, select: { role: true } });
+    return profile?.role;
+  }
+
   private async findNeonSession(request: Request): Promise<NeonSessionRow | null> {
-    if (!this.dataSource) return null;
     const authorization = request.headers.authorization;
     if (!authorization) return null;
     const match = /^Bearer\s+(.+)$/i.exec(authorization);
@@ -76,7 +78,6 @@ export class AuthGuard implements CanActivate {
         SELECT
           s.id AS "sessionId",
           s."userId" AS "sessionUserId",
-          s.token AS "sessionToken",
           s."expiresAt" AS "sessionExpiresAt",
           s."ipAddress" AS "sessionIpAddress",
           s."userAgent" AS "sessionUserAgent",
@@ -84,8 +85,7 @@ export class AuthGuard implements CanActivate {
           u.name AS "userName",
           u.email AS "userEmail",
           u."emailVerified" AS "userEmailVerified",
-          u.image AS "userImage",
-          u.role AS "userRole"
+          u.image AS "userImage"
         FROM neon_auth."session" s
         INNER JOIN neon_auth."user" u ON u.id = s."userId"
         WHERE s.token IN (${placeholders})

@@ -25,6 +25,7 @@ import { AddListTemplatesAndItemCost1780000000000 } from './migrations/178000000
 import { BuyerEmailInvitations1780000001000 } from './migrations/1780000001000-buyer-email-invitations.js';
 import { ProductsAndAssignmentInventoryChoice1780000002000 } from './migrations/1780000002000-products-and-assignment-inventory-choice.js';
 import { ProductsModule } from './products/products.module.js';
+import { RandomizeContactCodes1780000003000 } from './migrations/1780000003000-randomize-contact-codes.js';
 
 @Module({
   imports: [
@@ -36,9 +37,9 @@ import { ProductsModule } from './products/products.module.js';
       useFactory: (config: ConfigService) => ({
         type: 'postgres' as const,
         url: config.getOrThrow<string>('DATABASE_URL'),
-        ssl: { rejectUnauthorized: false },
+        ssl: config.getOrThrow<string>('DATABASE_URL').includes('neon.tech') ? { rejectUnauthorized: true } : undefined,
         entities: [UserEntity, UserContactEntity, CategoryEntity, ShoppingListEntity, ListItemEntity, InventoryPurchaseEntity, ListTemplateEntity, TemplateItemEntity, BuyerInvitationEntity, ProductEntity],
-        migrations: [AddListTemplatesAndItemCost1780000000000, BuyerEmailInvitations1780000001000, ProductsAndAssignmentInventoryChoice1780000002000],
+        migrations: [AddListTemplatesAndItemCost1780000000000, BuyerEmailInvitations1780000001000, ProductsAndAssignmentInventoryChoice1780000002000, RandomizeContactCodes1780000003000],
         migrationsRun: true,
         synchronize: config.get('NODE_ENV') === 'development',
         autoLoadEntities: false,

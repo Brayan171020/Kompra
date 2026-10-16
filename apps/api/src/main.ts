@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import 'dotenv/config';
 import express from 'express';
+import type { NextFunction, Request, Response } from 'express';
 import helmet from 'helmet';
 import { ValidationPipe, VersioningType } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
@@ -37,6 +38,20 @@ async function bootstrap(): Promise<void> {
         },
       },
     }));
+    app.use(['/api/docs', '/api/v1/auth/reference'], (_request: Request, response: Response, next: NextFunction) => {
+      response.setHeader('Content-Security-Policy', [
+        "default-src 'self'",
+        "base-uri 'self'",
+        "frame-ancestors 'none'",
+        "object-src 'none'",
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+        "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net",
+        "img-src 'self' data: https:",
+        "font-src 'self' data: https://cdn.jsdelivr.net",
+        `connect-src 'self' ${trustedOrigins.join(' ')}`,
+      ].join('; '));
+      next();
+    });
     app.enableCors({
       origin: (origin: string | undefined, callback: (error: Error | null, allow?: boolean) => void) => {
         if (!origin || trustedOrigins.includes(origin)) return callback(null, true);
@@ -55,18 +70,41 @@ async function bootstrap(): Promise<void> {
     app.useGlobalInterceptors(new HttpLoggingInterceptor());
 
     const swaggerConfig = new DocumentBuilder()
-      .setTitle('Kompra API')
-      .setDescription('API colaborativa para listas de compras y despensa familiar')
-      .setVersion('1.0')
-      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'session_token' }, 'bearer')
+      .setTitle('Kompra REST API')
+      .setDescription([
+        'API REST versionada de Kompra para listas de compras colaborativas, productos reutilizables, plantillas e historial de inventario.',
+        '',
+        'Las rutas de negocio requieren una sesión de Kompra. Para probarlas, envía el token de sesión con el esquema Bearer. Solo el estado del servicio es público.',
+        '',
+        'La autenticación con correo, contraseña, enlace mágico y OAuth se documenta en la [referencia Better Auth](/api/v1/auth/reference).',
+      ].join('\n'))
+      .setVersion('1.0.0')
+      .setContact('Brayan Gamboa', 'https://github.com/Brayan171020/Kompra', 'brayangt1710@gmail.com')
+      .addServer(process.env.API_PUBLIC_URL || 'https://kompra.onrender.com', 'Producción')
+      .addServer('http://localhost:4000', 'Desarrollo local')
+      .addBearerAuth({ type: 'http', scheme: 'bearer', bearerFormat: 'session_token', description: 'Token de sesión emitido por Better Auth.' }, 'bearer')
+      .addTag('Salud', 'Disponibilidad de la API y conectividad con PostgreSQL.')
+      .addTag('Categorías', 'Categorías de compra. La lectura requiere sesión; solo CREATOR puede crear categorías.')
+      .addTag('Listas', 'Creación, consulta, asignación y cierre de listas compartidas.')
+      .addTag('Elementos de lista', 'Productos y cantidades dentro de una lista activa.')
+      .addTag('Productos', 'Catálogo personal de productos reutilizables.')
+      .addTag('Plantillas', 'Plantillas reutilizables para iniciar listas de compra.')
+      .addTag('Inventario', 'Registro de compras, transferencias desde listas e informes de despensa.')
+      .addTag('Usuarios y contactos', 'Perfil, código de contacto, red de contactos e invitaciones.')
+      .setExternalDoc('Autenticación Better Auth', 'https://kompra.onrender.com/api/v1/auth/reference')
       .build();
-    SwaggerModule.setup('api/docs', app, SwaggerModule.createDocument(app, swaggerConfig));
+    const swaggerDocument = SwaggerModule.createDocument(app, swaggerConfig, { deepScanRoutes: true });
+    SwaggerModule.setup('api/docs', app, swaggerDocument, {
+      jsonDocumentUrl: 'api/docs-json',
+      swaggerOptions: { persistAuthorization: false, filter: true, displayRequestDuration: true },
+      customSiteTitle: 'Kompra API | Swagger',
+    });
 
     const port = Number(process.env.PORT || 10000);
     await app.listen(port, '0.0.0.0');
     console.log(`Application is running on: ${await app.getUrl()}`);
   } catch (err) {
-    console.error('Error starting server:', err);
+    console.error('Error starting server:', err instanceof Error ? err.name : 'UnknownError');
     process.exitCode = 1;
   }
 }
