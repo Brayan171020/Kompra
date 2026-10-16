@@ -11,25 +11,25 @@ import { apiFetch } from '../../lib/api';
 export default function AppLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   const { data: session, isPending } = authClient.useSession();
   const router = useRouter();
-  const [identityReady, setIdentityReady] = useState(false);
+  const [identity, setIdentity] = useState<{ userId: string; role: 'CREATOR' | 'BUYER' } | null>(null);
   const [identityError, setIdentityError] = useState('');
-  const [canCreate, setCanCreate] = useState(false);
+  const sessionUserId = session?.user?.id;
+  const identityReady = Boolean(sessionUserId && identity?.userId === sessionUserId);
+  const canCreate = identityReady && identity?.role === 'CREATOR';
 
   useEffect(() => {
     if (!isPending && !session) router.replace('/login');
   }, [isPending, router, session]);
 
   useEffect(() => {
-    if (isPending || !session?.user) return;
+    if (isPending || !sessionUserId || identityReady) return;
     let cancelled = false;
-    setIdentityReady(false);
     setIdentityError('');
 
     apiFetch<{ user: { role: 'CREATOR' | 'BUYER' } }>('/users/me')
       .then(({ user }) => {
         if (cancelled) return;
-        setCanCreate(user.role === 'CREATOR');
-        setIdentityReady(true);
+        setIdentity({ userId: sessionUserId, role: user.role });
       })
       .catch((cause: unknown) => {
         if (cancelled) return;
@@ -38,16 +38,16 @@ export default function AppLayout({ children }: Readonly<{ children: React.React
           status: error.status,
           body: error.body,
           message: error.message,
-          userId: session.user.id,
+          userId: sessionUserId,
           endpoint: '/api/v1/users/me',
         });
         setIdentityError(error.message || 'Error desconocido al sincronizar la identidad.');
       });
 
     return () => { cancelled = true; };
-  }, [isPending, session]);
+  }, [isPending, sessionUserId, identityReady]);
 
-  if (isPending) {
+  if (isPending && !identityReady) {
     return <div className="flex min-h-dvh items-center justify-center bg-stone-50"><div className="flex flex-col items-center gap-3"><div className="h-8 w-8 animate-spin rounded-full border-2 border-emerald-600 border-t-transparent" /><p className="text-sm font-medium text-stone-500">Cargando Kompra...</p></div></div>;
   }
 
